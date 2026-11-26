@@ -1,4 +1,4 @@
-const CACHE='sokn-v13';
+const CACHE='sokn-v14';
 const CORE=['/','/css/tokens.css','/css/app.css','/js/app.js','/js/i18n.js','/js/timeline.js','/manifest.webmanifest'];
 
 self.addEventListener('install',event=>{

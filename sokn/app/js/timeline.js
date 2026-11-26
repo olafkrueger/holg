@@ -62,11 +62,12 @@ export function renderTimeline(date, visits, now = new Date()) {
     <div class="timeline-heading"><h3>Tagesverlauf</h3></div>
     <div class="timeline-chart ${isToday ? 'has-now' : ''}">
       <div class="timeline-scale">
-        <div class="timeline-phases" aria-label="Nacht, Morgen, Mittag und Abend">
-          <span role="img" title="Nacht" aria-label="Nacht"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg></span>
-          <span role="img" title="Morgen" aria-label="Morgen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19h18M5 16a7 7 0 0 1 14 0M12 2v3M4 8l2 2M20 8l-2 2"/></svg></span>
-          <span role="img" title="Mittag" aria-label="Mittag"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg></span>
-          <span role="img" title="Abend" aria-label="Abend"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19h18M5 16a7 7 0 0 1 14 0M12 3v6m-3-3 3 3 3-3"/></svg></span>
+        <div class="timeline-phases" aria-label="Tageszeiten von Mitternacht bis Mitternacht">
+          <span class="timeline-phase night" role="img" title="Nacht, 00 bis 06 Uhr" aria-label="Nacht, 00 bis 06 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 19.5 15.5Z"/><path d="M17 3v4m-2-2h4"/></svg><small>Nacht</small></span>
+          <span class="timeline-phase morning" role="img" title="Morgen, 06 bis 10 Uhr" aria-label="Morgen, 06 bis 10 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 19h20M5 16a7 7 0 0 1 14 0M12 9V2m-3 3 3-3 3 3M4 10l2 2m14-2-2 2"/></svg><small>Morgen</small></span>
+          <span class="timeline-phase day" role="img" title="Tag, 10 bis 17 Uhr" aria-label="Tag, 10 bis 17 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><small>Tag</small></span>
+          <span class="timeline-phase evening" role="img" title="Abend, 17 bis 21 Uhr" aria-label="Abend, 17 bis 21 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 19h20M5 16a7 7 0 0 1 14 0M12 2v7m-3-3 3 3 3-3M4 10l2 2m14-2-2 2"/></svg><small>Abend</small></span>
+          <span class="timeline-phase night" role="img" title="Nacht, 21 bis 24 Uhr" aria-label="Nacht, 21 bis 24 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 19.5 15.5Z"/><path d="M17 3v4m-2-2h4"/></svg><small>Nacht</small></span>
         </div>
         <div class="timeline-axis" aria-hidden="true">
           <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>

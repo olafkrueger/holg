@@ -26,6 +26,12 @@ test('shows now on an empty today, but not on another day', () => {
   assert.doesNotMatch(renderTimeline('2030-01-03', [], now), /timeline-now/);
 });
 
+test('shows night at both ends of a chronological day', () => {
+  const html = renderTimeline(localDate(now), [visit('Late', '22:00', '23:30')], now);
+  assert.match(html, /Nacht, 00 bis 06 Uhr[\s\S]*Morgen, 06 bis 10 Uhr[\s\S]*Tag, 10 bis 17 Uhr[\s\S]*Abend, 17 bis 21 Uhr[\s\S]*Nacht, 21 bis 24 Uhr/);
+  assert.match(html, /--start:91\.66666666666666%;--duration:6\.25%/);
+});
+
 test('places the now marker correctly at the edges of the day', () => {
   const midnight = new Date(2030, 0, 2, 0, 0);
   const late = new Date(2030, 0, 2, 23, 59);

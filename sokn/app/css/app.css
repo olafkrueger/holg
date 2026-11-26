@@ -203,9 +203,13 @@ body {
 .timeline-chart { --person-width:200px;position:relative;margin-top:12px; }
 .timeline-scale { margin-left:var(--person-width); }
 .timeline-chart.has-now .timeline-scale { padding-top:42px; }
-.timeline-phases { display:grid;grid-template-columns:repeat(4,1fr);align-items:center;justify-items:center; }
-.timeline-phases span { display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container); }
-.timeline-phases svg { width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round; }
+.timeline-phases { display:grid;grid-template-columns:6fr 4fr 7fr 4fr 3fr;min-height:84px;overflow:hidden;border-radius:18px; }
+.timeline-phase { position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;color:var(--md-sys-color-on-secondary-container);background:var(--md-sys-color-secondary-container); }
+.timeline-phase.day { background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container); }
+.timeline-phase.evening { background:#f2d3bb;color:#702b1d; }
+.timeline-phase.night { background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container); }
+.timeline-phase svg { width:40px;height:40px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round; }
+.timeline-phase small { font-size:14px;font-weight:800; }
 .timeline-axis { position:relative;height:28px;margin-top:6px;font-size:15px;font-weight:800;color:var(--md-sys-color-on-surface); }
 .timeline-axis span { position:absolute;top:0;transform:translateX(-50%); }
 .timeline-axis span:nth-child(1) { left:0;transform:none; }
@@ -218,7 +222,7 @@ body {
 .timeline-person strong { display:block;font-size:18px;overflow-wrap:anywhere; }
 .timeline-person div span { display:block;margin-top:3px;font-size:14px;font-weight:800;white-space:nowrap; }
 .timeline-avatar { flex:none;width:48px;height:48px;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);font-size:22px;font-weight:800; }
-.timeline-track { position:relative;height:32px;border-radius:8px;background-color:var(--md-sys-color-surface-container-high);background-image:linear-gradient(to right,var(--md-sys-color-outline-variant) 1px,transparent 1px);background-size:25% 100%; }
+.timeline-track { position:relative;height:40px;border-radius:10px;background-color:var(--md-sys-color-surface-container-high);background-image:linear-gradient(to right,var(--md-sys-color-outline-variant) 1px,transparent 1px);background-size:25% 100%; }
 .timeline-interval { position:absolute;top:4px;bottom:4px;left:var(--start);width:var(--duration);min-width:3px;background:var(--md-sys-color-primary);border-radius:5px; }
 .timeline-overlay { position:absolute;z-index:1;left:var(--person-width);right:0;top:0;bottom:0;pointer-events:none; }
 .timeline-now-label { position:absolute;top:0;left:clamp(48px,var(--position),calc(100% - 48px));transform:translateX(-50%);padding:5px 8px;border-radius:8px;background:#8a3525;color:#fff;font-size:14px;font-weight:800;white-space:nowrap; }
@@ -239,12 +243,12 @@ body {
 .holger-day > h2 { margin:0 0 12px; }
 .hero-card + .holger-day { margin-top:20px; }
 @media(max-width:620px) {
-  .timeline-chart { --person-width:105px; }
-  .timeline-person { align-items:flex-start;flex-direction:column;gap:4px; }
-  .timeline-person strong { font-size:15px; }
-  .timeline-person div span { font-size:12px; }
-  .timeline-avatar { width:40px;height:40px;font-size:18px; }
-  .timeline-phases span { width:28px;height:28px; }
-  .timeline-phases svg { width:19px;height:19px; }
-  .timeline-axis { font-size:12px; }
+  .timeline-chart { --person-width:0px; }
+  .timeline-visit { grid-template-columns:minmax(0,1fr);padding-bottom:12px; }
+  .timeline-person,.timeline-no-visits { position:relative;z-index:2;background:var(--timeline-background,var(--md-sys-color-surface)); }
+  .holger-day.today { --timeline-background:var(--md-sys-color-primary-container); }
+  .timeline-phases { min-height:64px; }
+  .timeline-phase svg { width:30px;height:30px; }
+  .timeline-phase small { display:none; }
+  .timeline-axis { font-size:14px; }
 }
