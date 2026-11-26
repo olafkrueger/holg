@@ -223,6 +223,14 @@ body {
 .timeline-now-label { position:absolute;top:0;left:clamp(48px,var(--position),calc(100% - 48px));transform:translateX(-50%);padding:5px 8px;border-radius:8px;background:#8a3525;color:#fff;font-size:14px;font-weight:800;white-space:nowrap; }
 .timeline-now { position:absolute;top:32px;bottom:0;left:var(--position);width:3px;background:#a33f2e;transform:translateX(-50%);border-radius:3px; }
 .timeline-no-visits { color:var(--md-sys-color-on-surface-variant);font-size:15px; }
+.booking-card { max-width:760px;margin:auto;padding:24px;border-radius:28px;background:var(--md-sys-color-surface-container-low); }
+.booking-card h1 { margin:0;font-size:clamp(30px,5vw,44px); }
+.booking-date { margin:8px 0 24px;font-size:22px;font-weight:800;color:var(--md-sys-color-primary); }
+.booking-time { min-height:96px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px; }
+.booking-time strong { font-size:20px; }
+.booking-time span { font-size:16px; }
+.booking-field { display:grid;gap:8px;margin:20px 0;font-weight:700; }
+.button:disabled { opacity:.5;cursor:not-allowed; }
 .holger-day > h2 { margin:0 0 12px; }
 .hero-card + .holger-day { margin-top:20px; }
 @media(max-width:620px) {

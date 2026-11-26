@@ -138,17 +138,17 @@ async function adminPage(visitorSlug,adminSlug){
 }
 
 let visitState={date:'',time:'',template:'',note:''};
-async function circlePage(slug){
+async function circlePage(slug,selectedDate){
   let c;
   try{c=await api(`/api/circles/by-slug/${encodeURIComponent(slug)}`);}catch{return generic();}
   if(!c.role){return joinPage(slug);}
   let data;
   try{data=await api(`/api/circles/${c.id}/visits`);localStorage.setItem(`sokn-visits-${c.id}`,JSON.stringify(data.visits));}
   catch(e){data={visits:JSON.parse(localStorage.getItem(`sokn-visits-${c.id}`)||'[]')};}
-  renderVisitor(c,data.visits);
+  renderVisitor(c,data.visits,selectedDate);
 }
-function renderVisitor(c,visits){
-  let selected=dateLocal(new Date());
+function renderVisitor(c,visits,selectedDate){
+  let selected=selectedDate||dateLocal(new Date());
   app.innerHTML=`<section class="visitor-shell">
     <div class="circle-heading"><div><span class="eyebrow">Besucherkalender</span><h1>${esc(c.name)}</h1></div><div class="avatar">${esc(c.name?.charAt(0)||'H')}</div></div>
     <section class="horizon-card" aria-label="Eine Woche zurück bis zwei Wochen voraus">
@@ -211,38 +211,54 @@ function renderVisitor(c,visits){
     document.querySelector('#day-visits').innerHTML=renderTimeline(selected,rows);
   }
   renderHorizon();renderDay();
-  document.querySelector('#fab').onclick=()=>visitorFlow(c);
+  document.querySelector('#fab').onclick=()=>visitorFlow(c,selected);
 }
-function visitorFlow(c){
-  visitState={date:'',time:'',template:'',note:''};
-  const today=new Date();
+function visitorFlow(c,selectedDate){
+  visitState={date:selectedDate,time:'',template:'',note:''};
   back.hidden=false;
-  function dayStep(){
-    app.innerHTML=`<section><h1>${t.day}</h1><div class="chip-row">${Array.from({length:21},(_,n)=>{
-      const d=new Date(today); d.setDate(today.getDate()+n-7); const id=dateLocal(d);
-      return `<button class="chip ${n===7?'selected':''}" data-date="${id}">${esc(naturalDate(id))}</button>`;
-    }).join('')}</div>
-      <label><p>Anderes Datum</p><input class="field" id="other-date" type="date"></label>
-    </section>`;
-    app.querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>{visitState.date=b.dataset.date;timeStep();});
-    document.querySelector('#other-date').onchange=()=>{if(document.querySelector('#other-date').value){visitState.date=document.querySelector('#other-date').value;timeStep();}};
-  }
   function timeStep(){
-    app.innerHTML=`<section><h1>${t.time}</h1><div class="chip-row">${['Morgens','Nachmittags','Abends'].map(x=>`<button class="chip" data-template="${x}">${esc(t[x==='Morgens'?'morning':x==='Nachmittags'?'afternoon':'evening'])}</button>`).join('')}</div><label><p>${t.note}</p><input class="field" id="note" maxlength="280"></label><button class="button wide step" id="save">${t.done}</button></section>`;
+    app.innerHTML=`<section class="booking-card">
+      <h1>${t.time}</h1>
+      <p class="booking-date" id="booking-date">${esc(naturalDate(visitState.date))}</p>
+      <div class="chip-row">${['Morgens','Nachmittags','Abends'].map(x=>{
+        const [start,end]=templateTimes(x);
+        return `<button class="chip booking-time" data-template="${x}" aria-pressed="false"><strong>${esc(t[x==='Morgens'?'morning':x==='Nachmittags'?'afternoon':'evening'])}</strong><span>${start}–${end}</span></button>`;
+      }).join('')}</div>
+      <label class="booking-field" for="other-date">Datum ändern (optional)
+        <input class="field" id="other-date" type="date" value="${esc(visitState.date)}" required>
+      </label>
+      <label class="booking-field" for="note">${t.note} (optional)
+        <input class="field" id="note" maxlength="280">
+      </label>
+      <button class="button wide step" id="save" disabled>${t.done}</button>
+    </section>`;
+    const dateInput=document.querySelector('#other-date');
+    dateInput.addEventListener('input',()=>{
+      if(dateInput.value){
+        visitState.date=dateInput.value;
+        document.querySelector('#booking-date').textContent=naturalDate(visitState.date);
+      }
+    });
     app.querySelectorAll('[data-template]').forEach(b=>b.onclick=()=>{
-      app.querySelectorAll('[data-template]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');
+      app.querySelectorAll('[data-template]').forEach(x=>{
+        const isSelected=x===b;
+        x.classList.toggle('selected',isSelected);
+        x.setAttribute('aria-pressed',String(isSelected));
+      });
       visitState.template=b.dataset.template;const [s,e]=templateTimes(visitState.template);visitState.time=s;visitState.end=e;
+      document.querySelector('#save').disabled=false;
     });
     document.querySelector('#save').onclick=async()=>{
+      if(!dateInput.reportValidity())return;
+      visitState.date=dateInput.value;
       visitState.note=document.querySelector('#note').value;
-      if(!visitState.template)visitState.template='Nachmittags';
-      const [start,end]=templateTimes(visitState.template)||['14:00','16:00'];
-      try{await api(`/api/circles/${c.id}/visits`,{method:'POST',body:JSON.stringify({date:visitState.date,start_time:start,end_time:end,template:visitState.template,note:visitState.note})});back.hidden=true;circlePage(location.pathname.split('/')[2]);}
+      const [start,end]=templateTimes(visitState.template);
+      try{await api(`/api/circles/${c.id}/visits`,{method:'POST',body:JSON.stringify({date:visitState.date,start_time:start,end_time:end,template:visitState.template,note:visitState.note})});back.hidden=true;circlePage(location.pathname.split('/')[2],visitState.date);}
       catch(e){alert(e.message);}
     };
   }
-  back.onclick=()=>{back.hidden=true;circlePage(location.pathname.split('/')[2]);};
-  dayStep();
+  back.onclick=()=>{back.hidden=true;circlePage(location.pathname.split('/')[2],visitState.date);};
+  timeStep();
 }
 
 async function holgerPage(slug){
