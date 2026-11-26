@@ -41,6 +41,23 @@ app.addEventListener('click',event=>{
   const visit=visibleVisits.find(item=>item.id===button.dataset.visitId);
   if(visit) showVisitDetails(visit);
 });
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-distance-page]');
+  if(!button || button.disabled) return;
+  const distance=button.closest('.day-distance');
+  if(!distance) return;
+  const page=Number(button.dataset.distancePage);
+  const previous=Number(distance.dataset.distanceCurrent);
+  const template=document.createElement('template');
+  template.innerHTML=renderDayDistance(distance.dataset.distanceDate,new Date(),page);
+  const replacement=template.content.firstElementChild;
+  distance.replaceWith(replacement);
+  const direction=page>=previous ? 1 : -1;
+  const focus=replacement.querySelector(`[data-distance-page="${page+direction}"]:not(:disabled)`)
+    || replacement.querySelector(`[data-distance-page="${page-direction}"]:not(:disabled)`)
+    || replacement.querySelector('[data-distance-page]:not(:disabled)');
+  focus?.focus();
+});
 async function preparePhoto(file){
   if(!file || !file.type.startsWith('image/') || file.size>10*1024*1024) throw new Error('Bitte ein Bild mit höchstens 10 MB auswählen.');
   const url=URL.createObjectURL(file);

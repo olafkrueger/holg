@@ -56,27 +56,42 @@ function marker(now) {
   </div>`;
 }
 
-export function renderDayDistance(date, now = new Date()) {
+export function renderDayDistance(date, now = new Date(), page = 0) {
   const today=localDate(now);
   const target=Date.parse(`${date}T00:00:00Z`);
   const current=Date.parse(`${today}T00:00:00Z`);
   if (!Number.isFinite(target)) return '';
   const days=Math.round((target-current)/86400000);
-  if (days===0) return `<div class="day-distance day-distance-today"><span class="distance-dot is-today" aria-hidden="true"></span><strong>Heute</strong><span>Die Uhrzeit siehst du unten.</span></div>`;
   const count=Math.abs(days);
-  const relative=days===1?'Morgen':days===-1?'Gestern':days>0?`In ${count} Tagen`:`Vor ${count} Tagen`;
-  const compact=count>7;
-  const nodes=compact ? ['endpoint','gap','endpoint'] : Array.from({length:count+1},(_,i)=>i===0||i===count?'endpoint':'day');
-  const line=nodes.map((node,i)=>{
-    if(node==='gap') return '<span class="distance-gap" aria-hidden="true">···</span>';
-    const isToday=days>0 ? i===0 : i===nodes.length-1;
-    const isSelected=days>0 ? i===nodes.length-1 : i===0;
-    return `<span class="distance-dot ${isToday?'is-today':''} ${isSelected?'is-selected':''}" aria-hidden="true"></span>`;
+  const relative=days===0?'Heute':days===1?'Morgen':days===-1?'Gestern':days>0?`In ${count} Tagen`:`Vor ${count} Tagen`;
+  const pageSize=28, total=count+1, lastPage=Math.floor((total-1)/pageSize);
+  const currentPage=Math.max(0,Math.min(Number.isInteger(page)?page:0,lastPage));
+  const first=currentPage*pageSize, end=Math.min(first+pageSize,total);
+  const start=Math.min(current,target);
+  const weekdays=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const cells=Array.from({length:end-first},(_,i)=>{
+    const day=new Date(start+(first+i)*86400000);
+    const iso=day.toISOString().slice(0,10);
+    const isToday=iso===today, isSelected=iso===date;
+    const fullDate=day.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+    const description=[isToday?'Heute':'',isSelected?'Ausgewählter Tag':'',fullDate].filter(Boolean).join(', ');
+    return `<span class="distance-cell${isToday?' is-today':''}${isSelected?' is-selected':''}" data-day="${iso}" role="listitem" aria-label="${escapeHtml(description)}" title="${escapeHtml(description)}">
+      <span class="distance-weekday" aria-hidden="true">${weekdays[day.getUTCDay()]}</span><strong aria-hidden="true">${day.getUTCDate()}</strong>
+      <span class="distance-cell-label" aria-hidden="true">${isToday?'Heute':isSelected?'Ziel':'&nbsp;'}</span>
+    </span>`;
   }).join('');
-  const labels=days>0 ? ['Heute',relative] : [relative,'Heute'];
-  return `<div class="day-distance" style="--steps:${Math.min(count,8)}" aria-label="${escapeHtml(labels[0])}, ${escapeHtml(labels[1])}">
-    <div class="distance-line ${compact?'is-compact':''}">${line}</div>
-    <div class="distance-labels"><strong>${escapeHtml(labels[0])}</strong><strong>${escapeHtml(labels[1])}</strong></div>
+  const nav=lastPage ? `<div class="distance-pagination">
+    <span class="distance-page-count">Tage ${first+1}–${end} von ${total}</span>
+    <div class="distance-actions">
+      <button type="button" class="distance-page-button" data-distance-page="${currentPage-1}" ${currentPage===0?'disabled':''}>← Zurück</button>
+      <button type="button" class="distance-page-button" data-distance-page="${currentPage+1}" ${currentPage===lastPage?'disabled':''}>Weiter →</button>
+      <button type="button" class="distance-page-button" data-distance-page="${currentPage===0?lastPage:0}">${currentPage===0?'Zum Ende ⇥':'Zum Anfang ⇤'}</button>
+    </div>
+  </div>` : '';
+  return `<div class="day-distance" data-distance-date="${escapeHtml(date)}" data-distance-current="${currentPage}" aria-label="${escapeHtml(relative)}">
+    <div class="distance-title"><strong>${escapeHtml(relative)}</strong><span>Ein Kästchen = ein Tag</span></div>
+    <div class="distance-cells" role="list" aria-label="Tage zwischen heute und dem ausgewählten Tag">${cells}</div>
+    ${nav}
   </div>`;
 }
 
@@ -96,8 +111,7 @@ export function renderTimeline(date, visits, now = new Date(), {detail = false} 
       <span class="timeline-track" aria-hidden="true"><span class="timeline-interval" style="--start:${left}%;--duration:${width}%"></span></span>
     </button>`;
   }).join('');
-  return `<section class="day-timeline" aria-label="Tagesverlauf">
-    <div class="timeline-heading"><h3>Tagesverlauf</h3></div>
+  return `<section class="day-timeline" aria-label="Uhrzeiten">
     ${detail ? '' : renderDayDistance(date,now)}
     <div class="timeline-chart ${isToday ? 'has-now' : ''}">
       <div class="timeline-scale">
