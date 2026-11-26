@@ -1,5 +1,5 @@
 import {de as t} from './i18n.js';
-import {nextVisit, renderTimeline} from './timeline.js';
+import {isValidTimeRange, nextVisit, renderTimeline} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
@@ -19,8 +19,16 @@ function naturalDate(date){
   if(date===b)return t.tomorrow;
   return d.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
 }
+const visitTemplates=[
+  {name:t.morning,start:'07:00',end:'09:00'},
+  {name:t.lateMorning,start:'09:00',end:'12:00'},
+  {name:t.midday,start:'12:00',end:'14:00'},
+  {name:t.afternoon,start:'14:00',end:'18:00'},
+  {name:t.evening,start:'18:00',end:'21:00'}
+];
 function templateTimes(name){
-  return name==='Morgens'?['09:00','12:00']:name==='Nachmittags'?['13:00','17:00']:name==='Abends'?['18:00','21:00']:null;
+  const template=visitTemplates.find(item=>item.name===name);
+  return template ? [template.start,template.end] : null;
 }
 
 async function home(){
@@ -180,13 +188,15 @@ function renderVisitor(c,visits,selectedDate){
       const dayVisits=visits.filter(v=>v.date===id);
       const isToday=id===dateLocal(today);
       const relative=i===7?'Heute':i===8?'Morgen':i===6?'Gestern':d.toLocaleDateString('de-DE',{weekday:'short'});
-      const morning=dayVisits.some(v=>v.template==='Morgens'||v.start_time<'12:00');
-      const afternoon=dayVisits.some(v=>v.template==='Nachmittags'||(v.start_time>= '12:00'&&v.start_time<'18:00'));
-      const evening=dayVisits.some(v=>v.template==='Abends'||v.start_time>= '18:00');
+      const night=dayVisits.some(v=>v.start_time<'06:00'||v.start_time>='22:00');
+      const morning=dayVisits.some(v=>v.start_time>='06:00'&&v.start_time<'12:00');
+      const midday=dayVisits.some(v=>v.start_time>='12:00'&&v.start_time<'14:00');
+      const afternoon=dayVisits.some(v=>v.start_time>='14:00'&&v.start_time<'18:00');
+      const evening=dayVisits.some(v=>v.start_time>='18:00'&&v.start_time<'22:00');
       return `<button class="horizon-day ${isToday?'today':''} ${id===selected?'selected':''}" data-date="${id}" aria-label="${esc(naturalDate(id))}" aria-pressed="${id===selected}">
         <span class="horizon-relative">${esc(relative)}</span>
         <strong>${d.getDate()}</strong>
-        <span class="day-phases">${morning?'<i class="phase morning" title="Vormittag">◐</i>':''}${afternoon?'<i class="phase afternoon" title="Nachmittag">●</i>':''}${evening?'<i class="phase evening" title="Abend">◒</i>':''}</span>
+        <span class="day-phases">${night?'<i class="phase evening" title="Nacht">☾</i>':''}${morning?'<i class="phase morning" title="Morgen oder Vormittag">◐</i>':''}${midday?'<i class="phase midday" title="Mittag">☀</i>':''}${afternoon?'<i class="phase afternoon" title="Nachmittag">●</i>':''}${evening?'<i class="phase evening" title="Abend">◒</i>':''}</span>
         ${dayVisits.length?`<span class="horizon-count">${dayVisits.length}</span>`:''}
       </button>`;
     }).join('');
@@ -215,15 +225,26 @@ function renderVisitor(c,visits,selectedDate){
 }
 function visitorFlow(c,selectedDate){
   visitState={date:selectedDate,time:'',template:'',note:''};
+  let customTime=false;
   back.hidden=false;
   function timeStep(){
     app.innerHTML=`<section class="booking-card">
       <h1>${t.time}</h1>
       <p class="booking-date" id="booking-date">${esc(naturalDate(visitState.date))}</p>
-      <div class="chip-row">${['Morgens','Nachmittags','Abends'].map(x=>{
-        const [start,end]=templateTimes(x);
-        return `<button class="chip booking-time" data-template="${x}" aria-pressed="false"><strong>${esc(t[x==='Morgens'?'morning':x==='Nachmittags'?'afternoon':'evening'])}</strong><span>${start}–${end}</span></button>`;
-      }).join('')}</div>
+      <div class="chip-row">${visitTemplates.map(({name,start,end})=>{
+        return `<button class="chip booking-time" data-template="${esc(name)}" aria-pressed="false"><strong>${esc(name)}</strong><span>${start}–${end}</span></button>`;
+      }).join('')}
+        <button class="chip booking-time" id="custom-time" aria-pressed="false"><strong>Eigene Uhrzeit</strong><span>Beginn und Ende wählen</span></button>
+      </div>
+      <div class="custom-time-fields" id="custom-time-fields" hidden>
+        <label for="start-time">Beginn
+          <input class="field" id="start-time" type="time" step="60" value="09:00" required>
+        </label>
+        <label for="end-time">Ende
+          <input class="field" id="end-time" type="time" step="60" value="10:00" required>
+        </label>
+        <p class="booking-error" id="time-error" role="status" hidden>Das Ende muss nach dem Beginn liegen.</p>
+      </div>
       <label class="booking-field" for="other-date">Datum ändern (optional)
         <input class="field" id="other-date" type="date" value="${esc(visitState.date)}" required>
       </label>
@@ -233,6 +254,37 @@ function visitorFlow(c,selectedDate){
       <button class="button wide step" id="save" disabled>${t.done}</button>
     </section>`;
     const dateInput=document.querySelector('#other-date');
+    const startInput=document.querySelector('#start-time');
+    const endInput=document.querySelector('#end-time');
+    const customButton=document.querySelector('#custom-time');
+    const customFields=document.querySelector('#custom-time-fields');
+    const timeError=document.querySelector('#time-error');
+    const saveButton=document.querySelector('#save');
+    function updateCustomTime(){
+      const valid=isValidTimeRange(startInput.value,endInput.value);
+      timeError.hidden=valid;
+      startInput.setAttribute('aria-invalid',String(!valid));
+      endInput.setAttribute('aria-invalid',String(!valid));
+      saveButton.disabled=!valid;
+    }
+    startInput.addEventListener('input',updateCustomTime);
+    endInput.addEventListener('input',updateCustomTime);
+    customButton.onclick=()=>{
+      if(!customTime && visitState.time && visitState.end){
+        startInput.value=visitState.time;
+        endInput.value=visitState.end;
+      }
+      customTime=true;
+      visitState.template='';
+      app.querySelectorAll('[data-template]').forEach(x=>{
+        x.classList.remove('selected');
+        x.setAttribute('aria-pressed','false');
+      });
+      customButton.classList.add('selected');
+      customButton.setAttribute('aria-pressed','true');
+      customFields.hidden=false;
+      updateCustomTime();
+    };
     dateInput.addEventListener('input',()=>{
       if(dateInput.value){
         visitState.date=dateInput.value;
@@ -245,14 +297,22 @@ function visitorFlow(c,selectedDate){
         x.classList.toggle('selected',isSelected);
         x.setAttribute('aria-pressed',String(isSelected));
       });
+      customTime=false;
+      customButton.classList.remove('selected');
+      customButton.setAttribute('aria-pressed','false');
+      customFields.hidden=true;
       visitState.template=b.dataset.template;const [s,e]=templateTimes(visitState.template);visitState.time=s;visitState.end=e;
-      document.querySelector('#save').disabled=false;
+      saveButton.disabled=false;
     });
-    document.querySelector('#save').onclick=async()=>{
+    saveButton.onclick=async()=>{
       if(!dateInput.reportValidity())return;
+      if(customTime && !isValidTimeRange(startInput.value,endInput.value)){
+        updateCustomTime();
+        return;
+      }
       visitState.date=dateInput.value;
       visitState.note=document.querySelector('#note').value;
-      const [start,end]=templateTimes(visitState.template);
+      const [start,end]=customTime ? [startInput.value,endInput.value] : templateTimes(visitState.template);
       try{await api(`/api/circles/${c.id}/visits`,{method:'POST',body:JSON.stringify({date:visitState.date,start_time:start,end_time:end,template:visitState.template,note:visitState.note})});back.hidden=true;circlePage(location.pathname.split('/')[2],visitState.date);}
       catch(e){alert(e.message);}
     };

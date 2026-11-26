@@ -15,6 +15,12 @@ function minutes(time) {
   return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 }
 
+export function isValidTimeRange(start, end) {
+  const startMinutes = minutes(start);
+  const endMinutes = minutes(end);
+  return startMinutes !== null && endMinutes !== null && endMinutes > startMinutes;
+}
+
 export function nextVisit(visits, now = new Date()) {
   const today = localDate(now);
   const currentMinute = now.getHours() * 60 + now.getMinutes();

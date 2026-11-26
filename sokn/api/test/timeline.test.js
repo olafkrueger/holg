@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { localDate, nextVisit, renderTimeline } from '../../app/js/timeline.js';
+import { isValidTimeRange, localDate, nextVisit, renderTimeline } from '../../app/js/timeline.js';
 
 const now = new Date(2030, 0, 2, 12, 0);
 const visit = (name, start, end, date = localDate(now)) => ({
@@ -41,4 +41,12 @@ test('next visit skips visits already ended and escapes visitor names', () => {
   assert.equal(nextVisit(visits, now).display_name, '<Sam>');
   assert.match(renderTimeline(localDate(now), visits, now), /&lt;Sam&gt;/);
   assert.doesNotMatch(renderTimeline(localDate(now), visits, now), /<Sam>/);
+});
+
+test('custom times require a valid same-day range with an end after its start', () => {
+  assert.equal(isValidTimeRange('09:05', '10:35'), true);
+  assert.equal(isValidTimeRange('09:00', '09:00'), false);
+  assert.equal(isValidTimeRange('23:00', '01:00'), false);
+  assert.equal(isValidTimeRange('', '12:00'), false);
+  assert.equal(isValidTimeRange('25:00', '26:00'), false);
 });

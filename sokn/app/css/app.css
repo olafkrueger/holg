@@ -176,8 +176,9 @@ body {
 .horizon-relative { display:block;min-height:38px;font-size:14px;font-weight:900;text-transform:capitalize;line-height:1.15; }
 .horizon-day strong { display:grid;width:48px;height:48px;margin:4px auto 8px;place-items:center;border-radius:50%;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:22px; }
 .horizon-day.today strong { background:var(--md-sys-color-tertiary);color:var(--md-sys-color-on-tertiary-container); }
-.day-phases { display:flex;justify-content:center;gap:6px;min-height:26px; }
+.day-phases { display:flex;flex-wrap:wrap;justify-content:center;gap:6px;min-height:26px; }
 .phase { width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:18px;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container); }
+.phase.midday { background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container); }
 .phase.afternoon { background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container); }
 .phase.evening { background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container); }
 .horizon-count { position:absolute;right:7px;top:7px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--md-sys-color-tertiary);color:var(--md-sys-color-on-tertiary-container);font-size:13px;font-weight:900; }
@@ -230,6 +231,10 @@ body {
 .booking-time strong { font-size:20px; }
 .booking-time span { font-size:16px; }
 .booking-field { display:grid;gap:8px;margin:20px 0;font-weight:700; }
+.custom-time-fields:not([hidden]) { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0; }
+.custom-time-fields label { display:grid;gap:8px;font-weight:700; }
+.custom-time-fields input { min-width:0; }
+.booking-error { grid-column:1 / -1;margin:0;color:#8a3525;font-weight:700; }
 .button:disabled { opacity:.5;cursor:not-allowed; }
 .holger-day > h2 { margin:0 0 12px; }
 .hero-card + .holger-day { margin-top:20px; }

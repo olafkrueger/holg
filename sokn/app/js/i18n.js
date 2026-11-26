@@ -4,6 +4,8 @@ export const de={
  tomorrow:'Morgen',
  coming:'Ich komme',
  morning:'Morgens',
+ lateMorning:'Vormittags',
+ midday:'Mittags',
  afternoon:'Nachmittags',
  evening:'Abends',
  noVisit:'Noch kein Besuch',
