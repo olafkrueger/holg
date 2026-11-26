@@ -70,7 +70,7 @@ function naturalDate(date){
   if(date===b)return t.tomorrow;
   return d.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
 }
-function setupUpcoming(container,visits,tablet=false){
+function setupUpcoming(container,visits,onSelect,tablet=false){
   let signature=null;
   let expanded=false;
   function updateExpanded(){
@@ -82,9 +82,12 @@ function setupUpcoming(container,visits,tablet=false){
     }
   }
   container.addEventListener('click',event=>{
-    if(!event.target.closest('.upcoming-expand')) return;
-    expanded=!expanded;
-    updateExpanded();
+    const card=event.target.closest('.upcoming-card');
+    if(card){onSelect(card.dataset.date);return;}
+    if(event.target.closest('.upcoming-expand')){
+      expanded=!expanded;
+      updateExpanded();
+    }
   });
   return ()=>{
     const future=upcomingVisits(visits);
@@ -100,7 +103,7 @@ function setupUpcoming(container,visits,tablet=false){
           const names=people.map(person=>person.display_name || 'Besuch').join(' + ');
           const date=naturalDate(visit.date);
           const time=`${visit.start_time}–${visit.end_time}`;
-          return `<button type="button" class="upcoming-card" data-visit-id="${attr(visit.id)}" aria-label="Besuch anzeigen: ${attr(names)}, ${attr(date)}, ${attr(time)}" ${!expanded && index>=3?'hidden':''}>
+          return `<button type="button" class="upcoming-card" data-date="${attr(visit.date)}" aria-label="Tag anzeigen: ${attr(names)}, ${attr(date)}, ${attr(time)}" ${!expanded && index>=3?'hidden':''}>
             <span class="upcoming-avatars ${people.length>1?'multiple':''}">${renderUpcomingAvatars(people)}</span>
             <span class="upcoming-info"><strong class="upcoming-names">${esc(names)}</strong>
               <span class="upcoming-date">${esc(date)}</span>
@@ -158,6 +161,7 @@ function setupViewSwitch(onChange){
   }
   buttons.forEach(button=>button.addEventListener('click',()=>select(button.dataset.view)));
   select(calendarView);
+  return select;
 }
 const visitTemplates=[
   {name:t.morning,start:'08:00',end:'10:00'},
@@ -305,13 +309,19 @@ function renderVisitor(c,visits,selectedDate){
       ${viewSwitch()}
       <div class="horizon-rail" id="horizon-rail"></div>
     </section>
-    <section class="day-panel">
+    <section class="day-panel" tabindex="-1">
       <div class="day-title" id="day-title"></div>
       <div id="day-visits"></div>
     </section>
     <section class="overview-panel" id="week-overview" aria-label="Übersicht über sieben Tage" hidden></section>
   </section><button class="fab" id="fab">＋ ${t.coming}</button>`;
-  refreshNextVisit=setupUpcoming(app.querySelector('#next-visit'),visits);
+  refreshNextVisit=setupUpcoming(app.querySelector('#next-visit'),visits,date=>{
+    selectDay(date);
+    selectView('day');
+    const day=app.querySelector('.day-panel');
+    day.scrollIntoView({block:'start'});
+    day.focus({preventScroll:true});
+  });
   function renderHorizon(){
     const todayDate=dateLocal(new Date());
     const tomorrow=shiftDate(todayDate,1), yesterday=shiftDate(todayDate,-1);
@@ -372,7 +382,7 @@ function renderVisitor(c,visits,selectedDate){
   renderHorizon();renderDay();
   const overview=app.querySelector('#week-overview');
   const renderOverview=setupOverview(overview,visits,selected,selectDay);
-  setupViewSwitch(view=>{
+  const selectView=setupViewSwitch(view=>{
     const week=view==='week';
     app.querySelector('#horizon-rail').hidden=week;
     app.querySelector('.day-panel').hidden=week;
@@ -630,13 +640,13 @@ function renderHolger(c,visits){
   app.innerHTML=`<section class="hero-card card" id="next-visit"></section>
     ${viewSwitch()}
     <div id="holger-day-view">
-    <section class="holger-day today"><h2>Heute</h2>${renderTimeline(dateLocal(new Date()),visits.filter(v=>v.date===dateLocal(new Date())))}</section>
+    <section class="holger-day today" data-day="${dateLocal(new Date())}" tabindex="-1"><h2>Heute</h2>${renderTimeline(dateLocal(new Date()),visits.filter(v=>v.date===dateLocal(new Date())))}</section>
     <section class="holger-horizon" aria-label="Besuche der nächsten zwei Wochen">
       ${Array.from({length:14},(_,i)=>{
         const d=new Date();d.setDate(d.getDate()+i);const id=dateLocal(d);
         const dayVisits=visits.filter(v=>v.date===id);
         if(!dayVisits.length||i===0)return '';
-        return `<article class="holger-day ${i===0?'today':''}">
+        return `<article class="holger-day" data-day="${id}" tabindex="-1">
           <div class="holger-relative">${i===0?'Heute':i===1?'Morgen':esc(d.toLocaleDateString('de-DE',{weekday:'long'}))}</div>
           ${renderTimeline(id,dayVisits)}
         </article>`;
@@ -645,13 +655,27 @@ function renderHolger(c,visits){
     <section class="overview-panel" id="week-overview" aria-label="Übersicht über sieben Tage" hidden></section>`;
   const overview=app.querySelector('#week-overview');
   const renderOverview=setupOverview(overview,visits,null,null);
-  setupViewSwitch(view=>{
+  const selectView=setupViewSwitch(view=>{
     const week=view==='week';
     app.querySelector('#holger-day-view').hidden=week;
     overview.hidden=!week;
     if(week) renderOverview();
   });
-  refreshNextVisit=setupUpcoming(app.querySelector('#next-visit'),visits,true);
+  refreshNextVisit=setupUpcoming(app.querySelector('#next-visit'),visits,date=>{
+    selectView('day');
+    app.querySelector('.holger-day[data-extra]')?.remove();
+    let day=app.querySelector(`.holger-day[data-day="${date}"]`);
+    if(!day){
+      const horizon=app.querySelector('.holger-horizon');
+      horizon.insertAdjacentHTML('beforeend',`<article class="holger-day" data-day="${attr(date)}" data-extra tabindex="-1">
+        <div class="holger-relative">${esc(naturalDate(date))}</div>
+        ${renderTimeline(date,visits.filter(visit=>visit.date===date))}
+      </article>`);
+      day=horizon.lastElementChild;
+    }
+    day.scrollIntoView({block:'start'});
+    day.focus({preventScroll:true});
+  },true);
   refreshNextVisit();
   localStorage.setItem(`sokn-visits-${c.id}`,JSON.stringify(visits));
 }
