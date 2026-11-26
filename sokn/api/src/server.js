@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
+import formbody from '@fastify/formbody';
 import webPush from 'web-push';
 import crypto from 'node:crypto';
 import path from 'node:path';
@@ -16,6 +17,7 @@ export async function buildServer(overrides = {}) {
   const db = overrides.db || openDb(overrides.dbPath || config.dbPath);
   const app = Fastify({ logger: config.logger === false ? false : config.logger });
   await app.register(cookie, { secret: overrides.cookieSecret || process.env.COOKIE_SECRET || rid(32) });
+  await app.register(formbody);
   await app.register(rateLimit, { max: overrides.rateLimitMax || 60, timeWindow: '1 minute' });
   if (config.vapid.publicKey && config.vapid.privateKey) {
     webPush.setVapidDetails(config.vapid.subject, config.vapid.publicKey, config.vapid.privateKey);
@@ -87,6 +89,118 @@ export async function buildServer(overrides = {}) {
     return {ok:true};
   });
 
+  app.get('/auth/:provider/start', async (request, reply) => {
+    const provider=request.params.provider;
+    if(!['google','microsoft','apple'].includes(provider)) return reply.code(404).send({error:'not_found'});
+    const settings={
+      google:config.google,
+      microsoft:config.microsoft,
+      apple:config.apple
+    }[provider];
+    const configured=provider==='google'?settings.clientId&&settings.clientSecret:
+      provider==='microsoft'?settings.clientId&&settings.clientSecret:
+      settings.clientId&&settings.teamId&&settings.keyId&&settings.privateKey;
+    if(!configured) return reply.code(503).send({error:'provider_not_configured'});
+
+    const state=rid(32);
+    const nextPath=String(request.query.next||'/').startsWith('/')?String(request.query.next||'/'):'/';
+    db.prepare('INSERT INTO oauth_states(state,provider,next_path,expires_at) VALUES(?,?,?,?)')
+      .run(state,provider,nextPath,now()+10*60*1000);
+    const callback=`${config.baseUrl}/auth/${provider}/callback`;
+    let url;
+    if(provider==='google'){
+      url=new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      url.searchParams.set('client_id',settings.clientId);
+      url.searchParams.set('redirect_uri',callback);
+      url.searchParams.set('response_type','code');
+      url.searchParams.set('scope','openid profile');
+      url.searchParams.set('state',state);
+    }else if(provider==='microsoft'){
+      url=new URL(`https://login.microsoftonline.com/${settings.tenant}/oauth2/v2.0/authorize`);
+      url.searchParams.set('client_id',settings.clientId);
+      url.searchParams.set('redirect_uri',callback);
+      url.searchParams.set('response_type','code');
+      url.searchParams.set('scope','openid profile');
+      url.searchParams.set('state',state);
+    }else{
+      url=new URL('https://appleid.apple.com/auth/authorize');
+      url.searchParams.set('client_id',settings.clientId);
+      url.searchParams.set('redirect_uri',callback);
+      url.searchParams.set('response_type','code');
+      url.searchParams.set('response_mode','form_post');
+      url.searchParams.set('scope','name');
+      url.searchParams.set('state',state);
+    }
+    return reply.redirect(url.toString());
+  });
+
+  app.route({
+    method:['GET','POST'],
+    url:'/auth/:provider/callback',
+    handler:async(request,reply)=>{
+      const provider=request.params.provider;
+      const code=String(request.query.code||request.body?.code||'');
+      const state=String(request.query.state||request.body?.state||'');
+      const oauth=db.prepare('SELECT * FROM oauth_states WHERE state=? AND provider=?').get(state,provider);
+      if(!oauth||oauth.expires_at<now()){
+        db.prepare('DELETE FROM oauth_states WHERE state=?').run(state);
+        return reply.code(400).send({error:'invalid_login'});
+      }
+      db.prepare('DELETE FROM oauth_states WHERE state=?').run(state);
+      const settings={
+        google:config.google,
+        microsoft:config.microsoft,
+        apple:config.apple
+      }[provider];
+      const callback=`${config.baseUrl}/auth/${provider}/callback`;
+      let tokenUrl, params;
+      if(provider==='google'){
+        tokenUrl='https://oauth2.googleapis.com/token';
+        params={code,client_id:settings.clientId,client_secret:settings.clientSecret,redirect_uri:callback,grant_type:'authorization_code'};
+      }else if(provider==='microsoft'){
+        tokenUrl=`https://login.microsoftonline.com/${settings.tenant}/oauth2/v2.0/token`;
+        params={code,client_id:settings.clientId,client_secret:settings.clientSecret,redirect_uri:callback,grant_type:'authorization_code',scope:'openid profile'};
+      }else if(provider==='apple'){
+        tokenUrl='https://appleid.apple.com/auth/token';
+        const nowSeconds=Math.floor(now()/1000);
+        const header=Buffer.from(JSON.stringify({alg:'ES256',kid:settings.keyId})).toString('base64url');
+        const claims=Buffer.from(JSON.stringify({iss:settings.teamId,iat:nowSeconds,exp:nowSeconds+300,aud:'https://appleid.apple.com',sub:settings.clientId})).toString('base64url');
+        const signer=crypto.createSign('SHA256');
+        signer.update(`${header}.${claims}`);
+        signer.end();
+        let secret;
+        try{secret=signer.sign(settings.privateKey).toString('base64url');}catch{return reply.code(503).send({error:'provider_not_configured'});}
+        params={code,client_id:settings.clientId,client_secret:`${header}.${claims}.${secret}`,redirect_uri:callback,grant_type:'authorization_code'};
+      }else{
+        return reply.code(404).send({error:'not_found'});
+      }
+      const tokenResponse=await fetch(tokenUrl,{
+        method:'POST',
+        headers:{'content-type':'application/x-www-form-urlencoded','accept':'application/json'},
+        body:new URLSearchParams(params)
+      });
+      if(!tokenResponse.ok)return reply.code(401).send({error:'login_failed'});
+      const token=await tokenResponse.json();
+      if(!token.id_token)return reply.code(401).send({error:'login_failed'});
+      let claims;
+      try{claims=JSON.parse(Buffer.from(token.id_token.split('.')[1],'base64url').toString('utf8'));}catch{return reply.code(401).send({error:'login_failed'});}
+      const subject=String(claims.sub||'');
+      const name=String(claims.name||claims.preferred_username||claims.email?.split('@')[0]||'Besucherin').slice(0,80);
+      if(!subject)return reply.code(401).send({error:'login_failed'});
+      let user=db.prepare('SELECT * FROM users WHERE provider=? AND subject=?').get(provider,subject);
+      if(!user){
+        const id=rid(16);
+        db.prepare('INSERT INTO users(id,provider,subject,display_name,avatar_url,created_at) VALUES(?,?,?,?,?,?)')
+          .run(id,provider,subject,name,claims.picture||null,now());
+        user=db.prepare('SELECT * FROM users WHERE id=?').get(id);
+      }else{
+        db.prepare('UPDATE users SET display_name=?,avatar_url=? WHERE id=?').run(name,claims.picture||user.avatar_url,user.id);
+      }
+      setSession(reply,user.id);
+      return reply.redirect(oauth.next_path);
+    }
+  });
+
   app.post('/api/circles', async (request, reply) => {
     const user=getAuth(request);
     if (!user) return reply.code(401).send({error:'login_required'});
@@ -120,6 +234,14 @@ export async function buildServer(overrides = {}) {
     if (!m) db.prepare('INSERT INTO memberships(circle_id,user_id,role,status,created_at) VALUES(?,?,?,?,?)')
       .run(circle.id,user.id,'visitor','active',now());
     return {ok:true};
+  });
+
+  app.get('/api/circles/by-admin/:slug', async (request,reply)=>{
+    const circle=db.prepare('SELECT id,name,visitor_slug FROM circles WHERE admin_slug_hash=?').get(sha(request.params.slug));
+    if(!circle) return reply.code(404).send({error:'not_found'});
+    const auth=requireMember(request,reply,circle.id);
+    if(!auth || auth.membership.role!=='admin') return reply.code(404).send({error:'not_found'});
+    return circle;
   });
 
   app.post('/api/circles/:circleId/admin/rotate', async (request,reply) => {

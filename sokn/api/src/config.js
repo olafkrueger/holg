@@ -13,6 +13,21 @@ export function loadConfig(overrides = {}) {
     dbPath: e.DB_PATH || path.join(here, '..', 'data', 'sokn.db'),
     appDir: e.APP_DIR || path.join(here, '..', '..', 'app'),
     devLogin: e.DEV_LOGIN === '1' || e.NODE_ENV !== 'production',
+    google: {
+      clientId: e.GOOGLE_CLIENT_ID,
+      clientSecret: e.GOOGLE_CLIENT_SECRET
+    },
+    microsoft: {
+      clientId: e.MS_CLIENT_ID,
+      clientSecret: e.MS_CLIENT_SECRET,
+      tenant: e.MS_TENANT || 'common'
+    },
+    apple: {
+      clientId: e.APPLE_CLIENT_ID,
+      teamId: e.APPLE_TEAM_ID,
+      keyId: e.APPLE_KEY_ID,
+      privateKey: (e.APPLE_PRIVATE_KEY || '').replace(/\\n/g,'\n')
+    },
     vapid: {
       publicKey: e.VAPID_PUBLIC_KEY,
       privateKey: e.VAPID_PRIVATE_KEY,

@@ -7,7 +7,6 @@ export const de={
  afternoon:'Nachmittags',
  evening:'Abends',
  noVisit:'Noch kein Besuch',
- join:'Kreis beitreten',
  loginDev:'Mit Entwicklungs-Login',
  done:'Fertig',
  day:'Tag wählen',

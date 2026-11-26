@@ -22,16 +22,24 @@ function templateTimes(name){
 }
 
 async function home(){
-  app.innerHTML=`<section class="card"><h1>Sókn</h1><p>Besucherkalender für deinen Kreis.</p>
-    <button class="button wide" id="create">Kreis erstellen</button></section>`;
+  app.innerHTML=`<section class="create-shell">
+    <span class="eyebrow">Sókn</span>
+    <h1>Besucherkalender</h1>
+    <p>Lege den Kalender für eine Person und ihre Besuchenden an.</p>
+    <div class="create-form">
+      <label for="circle-name">Name</label>
+      <input class="field" id="circle-name" maxlength="80" value="Holgers Kalender" autocomplete="off">
+      <button class="button wide" id="create">Kalender erstellen</button>
+    </div>
+  </section>`;
   document.querySelector('#create').onclick=async()=>{
-    const name=prompt('Wie heißt der Kreis?','Holgers Kreis');
+    const name=document.querySelector('#circle-name').value.trim();
     if(!name)return;
-    try {
+    try{
       const me=await api('/api/me');
-      if(!me.id) return loginGate(()=>createCircle(name));
+      if(!me.id)return loginGate(()=>createCircle(name));
       await createCircle(name);
-    } catch(e){app.innerHTML=`<p>${esc(e.message)}</p>`;}
+    }catch(e){app.innerHTML=`<p>${esc(e.message)}</p>`;}
   };
 }
 async function createCircle(name){
@@ -41,27 +49,90 @@ async function createCircle(name){
   }catch(e){app.innerHTML=`<p>${esc(e.message)}</p>`;}
 }
 async function loginGate(join){
-  app.innerHTML=`<section class="join"><h1>Kreis beitreten</h1><div class="join-photo" aria-label="Holger">H</div>
-    <div class="providers"><button class="button" id="dev-login">Mit Entwicklungs-Login</button></div></section>`;
-  document.querySelector('#dev-login').onclick=async()=>{
-    await api('/auth/dev/login',{method:'POST',body:JSON.stringify({name:'Besucherin',subject:`visitor-${crypto.randomUUID()}`})});
-    await join();
-  };
+  app.innerHTML=`<section class="join shell-card">
+    <span class="join-eyebrow">Sókn · Anmeldung</span>
+    <div class="join-photo" aria-label="Besucherkalender">S</div>
+    <h1>Melde dich an</h1>
+    <p class="join-copy">Wähle einen Zugang für deinen Kalender.</p>
+    <div class="providers">
+      <button class="button wide provider google" data-provider="google"><span class="provider-icon">G</span><span>Weiter mit Google</span></button>
+      <button class="button wide provider microsoft" data-provider="microsoft"><span class="provider-icon">M</span><span>Weiter mit Microsoft 365</span></button>
+      <button class="button wide provider apple" data-provider="apple"><span class="provider-icon">●</span><span>Weiter mit Apple</span></button>
+      <button class="button wide provider dev" data-provider="dev">${t.loginDev}</button>
+    </div>
+  </section>`;
+  document.querySelectorAll('[data-provider]').forEach(button=>button.onclick=async()=>{
+    if(button.dataset.provider==='dev'){
+      await api('/auth/dev/login',{method:'POST',body:JSON.stringify({name:'Besucherin',subject:`visitor-${crypto.randomUUID()}`})});
+      await join();
+    }else{
+      location.href=`/auth/${button.dataset.provider}/start?next=${encodeURIComponent(location.pathname)}`;
+    }
+  });
 }
 async function joinPage(slug){
   let c;
   try{c=await api(`/api/circles/by-slug/${encodeURIComponent(slug)}`);}catch{return generic();}
-  app.innerHTML=`<section class="join"><h1>${esc(c.name)}</h1><div class="join-photo" aria-label="Holger">H</div>
-    <h2>Kreis beitreten</h2><div class="providers"><button class="button" id="join-dev">${t.loginDev}</button></div></section>`;
-  document.querySelector('#join-dev').onclick=async()=>{
-    const me=await api('/api/me');
-    if(!me.id) await api('/auth/dev/login',{method:'POST',body:JSON.stringify({name:'Besucherin',subject:`visitor-${crypto.randomUUID()}`})});
-    try{await api(`/api/circles/by-slug/${slug}/join`,{method:'POST'});location.href=`/c/${slug}`;}catch(e){await loginGate(()=>joinPage(slug));}
-  };
+  app.innerHTML=`<section class="join shell-card">
+    <div class="join-eyebrow">Sókn · Besucherkalender</div>
+    <div class="join-photo" aria-label="${esc(c.name)}">${esc(c.name?.charAt(0)||'H')}</div>
+    <h1>${esc(c.name)}</h1>
+    <p class="join-copy">Melde dich an und bleibe mit deinen Besuchen verbunden.</p>
+    <div class="providers">
+      <button class="button wide provider google" data-provider="google"><span class="provider-icon">G</span><span>Weiter mit Google</span></button>
+      <button class="button wide provider microsoft" data-provider="microsoft"><span class="provider-icon">M</span><span>Weiter mit Microsoft 365</span></button>
+      <button class="button wide provider apple" data-provider="apple"><span class="provider-icon">●</span><span>Weiter mit Apple</span></button>
+      <button class="button wide provider dev" data-provider="dev">${t.loginDev}</button>
+    </div>
+  </section>`;
+  document.querySelectorAll('[data-provider]').forEach(button=>{
+    button.onclick=async()=>{
+      if(button.dataset.provider==='dev'){
+        await api('/auth/dev/login',{method:'POST',body:JSON.stringify({name:'Besucherin',subject:`visitor-${crypto.randomUUID()}`})});
+        await api(`/api/circles/by-slug/${slug}/join`,{method:'POST'});
+        location.href=`/c/${slug}`;
+      }else{
+        location.href=`/auth/${button.dataset.provider}/start?next=/c/${slug}`;
+      }
+    };
+  });
   if(c.role) location.href=`/c/${slug}`;
 }
 function generic(){
   app.innerHTML=`<section class="card"><h1>Nicht gefunden</h1><p>Dieser Link ist nicht verfügbar.</p></section>`;
+}
+
+async function adminPage(visitorSlug,adminSlug){
+  let c;
+  try{c=await api(`/api/circles/by-admin/${encodeURIComponent(adminSlug)}`);}catch{return generic();}
+  let members=[];
+  try{members=(await api(`/api/circles/${c.id}/members`)).members;}catch(e){return generic();}
+  app.innerHTML=`<section class="visitor-shell">
+    <div class="circle-heading"><div><span class="eyebrow">Verwaltung</span><h1>${esc(c.name)}</h1></div><div class="avatar">A</div></div>
+    <div class="admin-grid">
+      <section class="card"><h2>Teilnehmende</h2><div id="members">${members.map(m=>`
+        <div class="member-row"><div class="avatar">${esc(m.display_name?.[0]||'?')}</div><strong>${esc(m.display_name)}</strong>
+        <button class="button danger" data-ban="${esc(m.id)}" ${m.role==='admin'?'disabled':''}>Sperren</button></div>`).join('')}</div></section>
+      <section class="card"><h2>Tablet verbinden</h2><p>Erzeuge einen Einmal-Link für das Schreib-tablet.</p>
+        <button class="button wide" id="pair">Einmal-Link erstellen</button><div id="pair-result"></div></section>
+      <section class="card"><h2>Links erneuern</h2><p>Neue Einladungslinks ungültig machen alte Links für neue Beitritte.</p>
+        <button class="button wide" id="rotate">Links erneuern</button><div id="rotate-result"></div></section>
+    </div>
+  </section>`;
+  document.querySelectorAll('[data-ban]').forEach(button=>button.onclick=async()=>{
+    if(!confirm('Diese Person für diesen Kalender sperren?'))return;
+    await api(`/api/circles/${c.id}/members/${button.dataset.ban}/block`,{method:'POST'});
+    adminPage(visitorSlug,adminSlug);
+  });
+  document.querySelector('#pair').onclick=async()=>{
+    const pairing=await api(`/api/circles/${c.id}/pairings`,{method:'POST'});
+    document.querySelector('#pair-result').innerHTML=`<p><strong>Einmal-Link:</strong><br><a href="${esc(pairing.pairing_url)}">${esc(location.origin+pairing.pairing_url)}</a></p>`;
+  };
+  document.querySelector('#rotate').onclick=async()=>{
+    if(!confirm('Alle alten Links ersetzen? Bestehende Teilnehmende bleiben verbunden.'))return;
+    const links=await api(`/api/circles/${c.id}/admin/rotate`,{method:'POST'});
+    document.querySelector('#rotate-result').innerHTML=`<p>Besucher: <a href="${esc(links.visitor_url)}">${esc(location.origin+links.visitor_url)}</a></p>`;
+  };
 }
 
 let visitState={date:'',time:'',template:'',note:''};
@@ -75,12 +146,40 @@ async function circlePage(slug){
   renderVisitor(c,data.visits);
 }
 function renderVisitor(c,visits){
-  app.innerHTML=`<section><h1>${esc(c.name)}</h1><div id="days"></div></section><button class="fab" id="fab">＋ ${t.coming}</button>`;
-  const days=[...new Map(visits.map(v=>[v.date,v])).keys()].sort();
-  document.querySelector('#days').innerHTML=days.length?days.map(d=>{
-    const row=visits.filter(v=>v.date===d).map(v=>`<div class="visit-row"><div class="avatar">${esc(v.display_name?.[0]||'B')}</div><div><strong>${esc(v.display_name||'Besuch')}</strong><br>${esc(v.start_time)}–${esc(v.end_time)}</div></div>`).join('');
-    return `<section class="card step"><h2>${esc(naturalDate(d))}</h2>${row}</section>`;
-  }).join(''):`<section class="card"><p>${t.noVisits}</p></section>`;
+  let selected=dateLocal(new Date());
+  app.innerHTML=`<section class="visitor-shell">
+    <div class="circle-heading"><div><span class="eyebrow">Besucherkalender</span><h1>${esc(c.name)}</h1></div><div class="avatar">${esc(c.name?.charAt(0)||'H')}</div></div>
+    <div class="week-nav" aria-label="Woche"></div>
+    <section class="day-panel">
+      <div class="day-title" id="day-title"></div>
+      <div id="day-visits"></div>
+    </section>
+  </section><button class="fab" id="fab">＋ ${t.coming}</button>`;
+  function renderWeek(){
+    const today=new Date();
+    const monday=new Date(today); monday.setDate(today.getDate()-((today.getDay()+6)%7));
+    document.querySelector('.week-nav').innerHTML=Array.from({length:7},(_,i)=>{
+      const d=new Date(monday); d.setDate(monday.getDate()+i);
+      const id=dateLocal(d);
+      return `<button class="day-chip ${id===selected?'selected':''}" data-date="${id}">
+        <span>${d.toLocaleDateString('de-DE',{weekday:'short'}).replace('.','')}</span>
+        <strong>${d.getDate()}</strong>
+      </button>`;
+    }).join('');
+    document.querySelectorAll('.day-chip').forEach(b=>b.onclick=()=>{
+      selected=b.dataset.date;renderWeek();renderDay();
+    });
+  }
+  function renderDay(){
+    document.querySelector('#day-title').innerHTML=`<h2>${esc(naturalDate(selected))}</h2>`;
+    const rows=visits.filter(v=>v.date===selected);
+    document.querySelector('#day-visits').innerHTML=rows.length?rows.map(v=>`
+      <article class="visit-row"><div class="avatar">${esc(v.display_name?.[0]||'B')}</div>
+      <div class="visit-info"><strong>${esc(v.display_name||'Besuch')}</strong><span>${esc(v.template||`${v.start_time}–${v.end_time}`)}</span></div>
+      <span class="time-chip">${esc(v.start_time)}–${esc(v.end_time)}</span></article>`).join(''):
+      `<article class="empty-day"><span aria-hidden="true">☀</span><strong>Heute ist noch frei</strong><p>Du kannst einen Besuch ankündigen.</p></article>`;
+  }
+  renderWeek();renderDay();
   document.querySelector('#fab').onclick=()=>visitorFlow(c);
 }
 function visitorFlow(c){
@@ -139,8 +238,8 @@ async function pairingPage(token){
 function route(){
   if(path.startsWith('/c/')){
     const parts=path.split('/').filter(Boolean);
-    if(parts.length>=4&&parts[2]==='admin') return generic();
     const slug=parts[1];
+    if(parts.length>=4&&parts[2]==='admin') return adminPage(slug,parts[3]);
     api('/api/device').then(()=>holgerPage(slug)).catch(()=>circlePage(slug));
   }else if(path.startsWith('/pair/')){
     pairingPage(path.split('/')[2]);
