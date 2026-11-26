@@ -1,5 +1,5 @@
 import {de as t} from './i18n.js';
-import {horizonDates, isValidTimeRange, upcomingVisits, renderPeople, renderUpcomingAvatars, renderTimeline, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
+import {horizonDates, isValidTimeRange, upcomingVisits, renderPeople, renderUpcomingAvatars, renderTimeline, renderTodayClock, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
@@ -7,6 +7,7 @@ const path=location.pathname;
 let refreshNextVisit=()=>{};
 let visibleVisits=[];
 let calendarView='day';
+let todayView='timeline';
 
 async function api(url,options={}) {
   const r=await fetch(url,{headers:{'content-type':'application/json'},...options});
@@ -162,6 +163,21 @@ function setupViewSwitch(onChange){
   buttons.forEach(button=>button.addEventListener('click',()=>select(button.dataset.view)));
   select(calendarView);
   return select;
+}
+function renderToday(visits){
+  return `<div class="today-switch" role="group" aria-label="Ansicht für heute">
+    <button type="button" data-today-view="timeline" aria-pressed="${todayView==='timeline'}"><span aria-hidden="true">☰</span> Tagesverlauf</button>
+    <button type="button" data-today-view="clock" aria-pressed="${todayView==='clock'}"><span aria-hidden="true">◷</span> Uhr</button>
+  </div>${todayView==='clock' ? renderTodayClock(visits) : renderTimeline(dateLocal(new Date()),visits)}`;
+}
+function setupTodaySwitch(container,render){
+  container.addEventListener('click',event=>{
+    const button=event.target.closest('[data-today-view]');
+    if(!button) return;
+    todayView=button.dataset.todayView;
+    render();
+    container.querySelector(`[data-today-view="${todayView}"]`).focus();
+  });
 }
 const visitTemplates=[
   {name:t.morning,start:'08:00',end:'10:00'},
@@ -377,8 +393,9 @@ function renderVisitor(c,visits,selectedDate){
   function renderDay(){
     document.querySelector('#day-title').innerHTML=`<h2>${esc(naturalDate(selected))}</h2>`;
     const rows=visits.filter(v=>v.date===selected);
-    document.querySelector('#day-visits').innerHTML=renderTimeline(selected,rows);
+    document.querySelector('#day-visits').innerHTML=selected===dateLocal(new Date()) ? renderToday(rows) : renderTimeline(selected,rows);
   }
+  setupTodaySwitch(app.querySelector('#day-visits'),renderDay);
   renderHorizon();renderDay();
   const overview=app.querySelector('#week-overview');
   const renderOverview=setupOverview(overview,visits,selected,selectDay);
@@ -640,7 +657,7 @@ function renderHolger(c,visits){
   app.innerHTML=`<section class="hero-card card" id="next-visit"></section>
     ${viewSwitch()}
     <div id="holger-day-view">
-    <section class="holger-day today" data-day="${dateLocal(new Date())}" tabindex="-1"><h2>Heute</h2>${renderTimeline(dateLocal(new Date()),visits.filter(v=>v.date===dateLocal(new Date())))}</section>
+    <section class="holger-day today" data-day="${dateLocal(new Date())}" tabindex="-1"><h2>Heute</h2><div id="today-visits"></div></section>
     <section class="holger-horizon" aria-label="Besuche der nächsten zwei Wochen">
       ${Array.from({length:14},(_,i)=>{
         const d=new Date();d.setDate(d.getDate()+i);const id=dateLocal(d);
@@ -653,6 +670,10 @@ function renderHolger(c,visits){
       }).join('')}
     </section></div>
     <section class="overview-panel" id="week-overview" aria-label="Übersicht über sieben Tage" hidden></section>`;
+  const todayContainer=app.querySelector('#today-visits');
+  const renderTodaySection=()=>{todayContainer.innerHTML=renderToday(visits.filter(v=>v.date===dateLocal(new Date())));};
+  setupTodaySwitch(todayContainer,renderTodaySection);
+  renderTodaySection();
   const overview=app.querySelector('#week-overview');
   const renderOverview=setupOverview(overview,visits,null,null);
   const selectView=setupViewSwitch(view=>{
@@ -716,6 +737,16 @@ setInterval(()=>{
     return;
   }
   if(document.querySelector('#next-visit')) refreshNextVisit();
+  document.querySelectorAll('.clock-period').forEach(period=>{
+    const current=Number(period.dataset.clockPeriod)===Math.floor(now.getHours()/12);
+    const label=period.querySelector('.clock-current');
+    const hands=period.querySelector('.clock-hands');
+    label.hidden=!current;
+    hands.toggleAttribute('hidden',!current);
+    label.textContent=`Jetzt ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    hands.querySelector('.clock-hour-hand').setAttribute('transform',`rotate(${((now.getHours()%12)*60+now.getMinutes())/2} 140 140)`);
+    hands.querySelector('.clock-minute-hand').setAttribute('transform',`rotate(${now.getMinutes()*6} 140 140)`);
+  });
   document.querySelectorAll('.day-timeline').forEach(timeline=>{
     const label=timeline.querySelector('.timeline-now-label');
     if (!label) return;

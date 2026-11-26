@@ -117,6 +117,54 @@ export function renderTimeline(date, visits, now = new Date(), {detail = false} 
   </section>`;
 }
 
+export function renderTodayClock(visits, now = new Date()) {
+  const today = localDate(now);
+  const currentMinute = now.getHours() * 60 + now.getMinutes();
+  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const rows = [...visits].filter(visit => {
+    const start = minutes(visit.start_time), end = minutes(visit.end_time);
+    return visit.date === today && start !== null && end !== null && end > start;
+  }).sort((a,b) => a.start_time.localeCompare(b.start_time));
+  const hours = Array.from({length:12}, (_, index) => {
+    const angle = index * Math.PI / 6;
+    return `<text x="${140 + 70 * Math.sin(angle)}" y="${140 - 70 * Math.cos(angle)}">${index || 12}</text>`;
+  }).join('');
+  return `<div class="today-clocks">${[0,1].map(period => {
+    const start = period * 720, end = start + 720;
+    const segments = rows.filter(visit => minutes(visit.start_time) < end && minutes(visit.end_time) > start);
+    const width = Math.min(9, 32 / Math.max(segments.length, 1));
+    const arcs = segments.map((visit,index) => {
+      const from = Math.max(minutes(visit.start_time),start) - start;
+      const duration = Math.min(minutes(visit.end_time),end) - start - from;
+      return `<circle class="clock-arc clock-color-${index % 6}" cx="140" cy="140" r="${119 - width * (index + .5)}" pathLength="720" stroke-width="${width * .8}" stroke-dasharray="${duration} ${720-duration}" stroke-dashoffset="${-from}" transform="rotate(-90 140 140)"/>`;
+    }).join('');
+    const current = Math.floor(currentMinute / 720) === period;
+    return `<section class="clock-period" data-clock-period="${period}">
+      <h3>${period === 0 ? '00–12 Uhr' : '12–24 Uhr'}</h3>
+      <p class="clock-current" ${current ? '' : 'hidden'}>Jetzt ${time}</p>
+      <svg class="clock-face" viewBox="0 0 280 280" aria-hidden="true">
+        <circle class="clock-background" cx="140" cy="140" r="127"/>
+        ${arcs}
+        <circle class="clock-inner" cx="140" cy="140" r="88"/>
+        <g class="clock-hours">${hours}</g>
+        <g class="clock-hands" ${current ? '' : 'hidden'}>
+          <line class="clock-hour-hand" x1="140" y1="140" x2="140" y2="100" transform="rotate(${(currentMinute % 720) / 2} 140 140)"/>
+          <line class="clock-minute-hand" x1="140" y1="140" x2="140" y2="83" transform="rotate(${now.getMinutes() * 6} 140 140)"/>
+          <circle cx="140" cy="140" r="5"/>
+        </g>
+      </svg>
+      <div class="clock-visits">${segments.map((visit,index) => {
+        const names = visitPeople(visit).map(person=>person.display_name || 'Besuch').join(', ');
+        return `<button type="button" class="clock-visit" data-visit-id="${escapeHtml(visit.id || '')}" aria-label="Besuch anzeigen: ${escapeHtml(names)}, ${escapeHtml(visit.start_time)} bis ${escapeHtml(visit.end_time)}">
+          <span class="clock-key clock-color-${index % 6}" aria-hidden="true"></span>
+          ${renderPeople(visitPeople(visit))}
+          <span class="clock-visit-time">${escapeHtml(visit.start_time)}–${escapeHtml(visit.end_time)} <span aria-hidden="true">ⓘ</span></span>
+        </button>`;
+      }).join('')}</div>
+    </section>`;
+  }).join('')}</div>`;
+}
+
 export function renderWeekOverview(startDate, visits, now = new Date(), selectedDate = null) {
   const today = localDate(now);
   const tomorrow = shiftDate(today, 1);

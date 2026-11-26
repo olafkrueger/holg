@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { horizonDates, isValidTimeRange, localDate, nextVisit, upcomingVisits, renderUpcomingAvatars, renderTimeline, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
+import { horizonDates, isValidTimeRange, localDate, nextVisit, upcomingVisits, renderUpcomingAvatars, renderTimeline, renderTodayClock, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
 
 const now = new Date(2030, 0, 2, 12, 0);
 const visit = (name, start, end, date = localDate(now)) => ({
@@ -53,6 +53,51 @@ test('detail timeline shows the selected visit and the current time without anot
   assert.match(html,/aria-label="Besuch von 09:00 bis 10:30 Uhr"/);
   assert.doesNotMatch(html,/<button|day-distance/);
   assert.doesNotMatch(renderTimeline('2030-01-03',[row],now,{detail:true}),/timeline-now/);
+});
+
+test('today clock splits visits at noon and shows the current hands on the correct dial', () => {
+  const crossing={...visit('<Sam>','11:30','12:30'),id:'crossing'};
+  const morning={...visit('Alex','09:00','10:00'),id:'morning'};
+  const afternoon={...visit('Mia','14:00','16:00'),id:'afternoon'};
+  const tomorrow={...visit('Later','09:00','10:00','2030-01-03'),id:'tomorrow'};
+  const html=renderTodayClock([crossing,morning,afternoon,tomorrow],now);
+  const [first,second]=html.split('<section class="clock-period" data-clock-period="1">');
+  assert.match(first,/00–12 Uhr/);
+  assert.match(second,/12–24 Uhr/);
+  assert.match(first,/stroke-dasharray="30 690" stroke-dashoffset="-690"/);
+  assert.match(second,/stroke-dasharray="30 690" stroke-dashoffset="0"/);
+  assert.match(second,/stroke-dasharray="120 600" stroke-dashoffset="-120"/);
+  assert.match(first,/data-visit-id="crossing"/);
+  assert.match(second,/data-visit-id="crossing"/);
+  assert.match(first,/&lt;Sam&gt;/);
+  assert.doesNotMatch(html,/data-visit-id="tomorrow"/);
+  assert.match(first,/class="clock-hands" hidden/);
+  assert.match(second,/class="clock-hands" >[\s\S]*rotate\(0 140 140\)/);
+  assert.match(second,/Jetzt 12:00/);
+});
+
+test('empty clock still shows both halves of today and the current time', () => {
+  const html=renderTodayClock([],new Date(2030,0,2,23,59));
+  assert.equal((html.match(/class="clock-period"/g)||[]).length,2);
+  assert.match(html,/Jetzt 23:59/);
+  assert.match(html,/rotate\(359\.5 140 140\)/);
+  assert.doesNotMatch(html,/clock-arc|Kein Besuch/);
+});
+
+test('clock keeps overlapping visits on separate rings and switches at noon', () => {
+  const rows=[
+    {...visit('Alex','09:00','11:00'),id:'one'},
+    {...visit('Sam','09:00','11:00'),id:'two'},
+    {...visit('Invalid','09:00','09:00'),id:'invalid'}
+  ];
+  const html=renderTodayClock(rows,new Date(2030,0,2,11,59));
+  const [first,second]=html.split('<section class="clock-period" data-clock-period="1">');
+  const radii=[...first.matchAll(/class="clock-arc[^>]* r="([^"]+)"/g)].map(match=>match[1]);
+  assert.equal(radii.length,2);
+  assert.notEqual(radii[0],radii[1]);
+  assert.match(first,/Jetzt 11:59/);
+  assert.match(second,/class="clock-hands" hidden/);
+  assert.doesNotMatch(html,/data-visit-id="invalid"/);
 });
 
 test('seven-day overview repeats the scale and positions visits on their correct days', () => {
