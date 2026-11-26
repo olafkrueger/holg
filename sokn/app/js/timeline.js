@@ -36,7 +36,7 @@ export function visitPeople(visit) {
 }
 
 export function renderPeople(people) {
-  return `<div class="people-list">${people.map(person=>{
+  return `<span class="people-list">${people.map(person=>{
     const name=escapeHtml(person.display_name || 'Besuch');
     const initial=escapeHtml((person.display_name || 'B').trim().charAt(0) || 'B');
     const url=person.avatar_url || '';
@@ -44,7 +44,7 @@ export function renderPeople(people) {
       ? `<img class="person-photo" src="${escapeHtml(url)}" alt="" referrerpolicy="no-referrer">`
       : `<span class="person-photo person-initial" aria-hidden="true">${initial}</span>`;
     return `<span class="person">${image}<span class="person-name">${name}</span></span>`;
-  }).join('')}</div>`;
+  }).join('')}</span>`;
 }
 
 function marker(now) {
@@ -56,6 +56,30 @@ function marker(now) {
   </div>`;
 }
 
+export function renderDayDistance(date, now = new Date()) {
+  const today=localDate(now);
+  const target=Date.parse(`${date}T00:00:00Z`);
+  const current=Date.parse(`${today}T00:00:00Z`);
+  if (!Number.isFinite(target)) return '';
+  const days=Math.round((target-current)/86400000);
+  if (days===0) return `<div class="day-distance day-distance-today"><span class="distance-dot is-today" aria-hidden="true"></span><strong>Heute</strong><span>Die Uhrzeit siehst du unten.</span></div>`;
+  const count=Math.abs(days);
+  const relative=days===1?'Morgen':days===-1?'Gestern':days>0?`In ${count} Tagen`:`Vor ${count} Tagen`;
+  const compact=count>7;
+  const nodes=compact ? ['endpoint','gap','endpoint'] : Array.from({length:count+1},(_,i)=>i===0||i===count?'endpoint':'day');
+  const line=nodes.map((node,i)=>{
+    if(node==='gap') return '<span class="distance-gap" aria-hidden="true">···</span>';
+    const isToday=days>0 ? i===0 : i===nodes.length-1;
+    const isSelected=days>0 ? i===nodes.length-1 : i===0;
+    return `<span class="distance-dot ${isToday?'is-today':''} ${isSelected?'is-selected':''}" aria-hidden="true"></span>`;
+  }).join('');
+  const labels=days>0 ? ['Heute',relative] : [relative,'Heute'];
+  return `<div class="day-distance" style="--steps:${Math.min(count,8)}" aria-label="${escapeHtml(labels[0])}, ${escapeHtml(labels[1])}">
+    <div class="distance-line ${compact?'is-compact':''}">${line}</div>
+    <div class="distance-labels"><strong>${escapeHtml(labels[0])}</strong><strong>${escapeHtml(labels[1])}</strong></div>
+  </div>`;
+}
+
 export function renderTimeline(date, visits, now = new Date()) {
   const isToday = date === localDate(now);
   const rows = [...visits].sort((a, b) => a.start_time.localeCompare(b.start_time)).map(visit => {
@@ -64,13 +88,14 @@ export function renderTimeline(date, visits, now = new Date()) {
     if (start === null || end === null || end < start) return '';
     const left = start / DAY_MINUTES * 100;
     const width = (end - start) / DAY_MINUTES * 100;
-    return `<article class="timeline-visit">
-      <div class="timeline-person">${renderPeople(visitPeople(visit))}<span class="timeline-time">${escapeHtml(visit.start_time)}–${escapeHtml(visit.end_time)}</span></div>
-      <div class="timeline-track" aria-hidden="true"><span class="timeline-interval" style="--start:${left}%;--duration:${width}%"></span></div>
-    </article>`;
+    return `<button type="button" class="timeline-visit timeline-visit-button" data-visit-id="${escapeHtml(visit.id || '')}" aria-label="Besuch anzeigen: ${escapeHtml(visitPeople(visit).map(p=>p.display_name || 'Besuch').join(', '))}, ${escapeHtml(visit.start_time)} bis ${escapeHtml(visit.end_time)}">
+      <span class="timeline-person">${renderPeople(visitPeople(visit))}<span class="timeline-time">${escapeHtml(visit.start_time)}–${escapeHtml(visit.end_time)} <span aria-hidden="true">ⓘ</span></span></span>
+      <span class="timeline-track" aria-hidden="true"><span class="timeline-interval" style="--start:${left}%;--duration:${width}%"></span></span>
+    </button>`;
   }).join('');
   return `<section class="day-timeline" aria-label="Tagesverlauf">
     <div class="timeline-heading"><h3>Tagesverlauf</h3></div>
+    ${renderDayDistance(date,now)}
     <div class="timeline-chart ${isToday ? 'has-now' : ''}">
       <div class="timeline-scale">
         <div class="timeline-phases" aria-label="Tageszeiten von Mitternacht bis Mitternacht">

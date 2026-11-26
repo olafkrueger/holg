@@ -1,10 +1,11 @@
 import {de as t} from './i18n.js';
-import {isValidTimeRange, nextVisit, renderPeople, renderTimeline, visitPeople} from './timeline.js';
+import {isValidTimeRange, nextVisit, renderDayDistance, renderPeople, renderTimeline, visitPeople} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
 const path=location.pathname;
 let refreshNextVisit=()=>{};
+let visibleVisits=[];
 
 async function api(url,options={}) {
   const r=await fetch(url,{headers:{'content-type':'application/json'},...options});
@@ -12,6 +13,32 @@ async function api(url,options={}) {
   return r.json();
 }
 function esc(s=''){const e=document.createElement('span');e.textContent=s;return e.innerHTML;}
+function attr(s=''){return esc(s).replace(/"/g,'&quot;');}
+function showVisitDetails(visit){
+  const dialog=document.createElement('dialog');
+  dialog.className='visit-dialog';
+  const date=new Date(`${visit.date}T12:00:00`).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  dialog.setAttribute('aria-labelledby','visit-dialog-title');
+  dialog.innerHTML=`<div class="visit-dialog-content">
+    <h2 id="visit-dialog-title">Wer kommt?</h2>
+    <p class="visit-dialog-date">${esc(naturalDate(visit.date))} · ${esc(date)}</p>
+    <p class="visit-dialog-time">${esc(visit.start_time)}–${esc(visit.end_time)} Uhr${visit.template ? ` · ${esc(visit.template)}` : ''}</p>
+    ${renderDayDistance(visit.date)}
+    ${renderPeople(visitPeople(visit))}
+    ${visit.note ? `<p class="visit-dialog-note">${esc(visit.note)}</p>` : ''}
+    <button class="button wide visit-dialog-close" type="button">Schließen</button>
+  </div>`;
+  document.body.append(dialog);
+  dialog.querySelector('.visit-dialog-close').onclick=()=>dialog.close();
+  dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+  dialog.showModal();
+}
+app.addEventListener('click',event=>{
+  const button=event.target.closest('[data-visit-id]');
+  if(!button || !app.contains(button)) return;
+  const visit=visibleVisits.find(item=>item.id===button.dataset.visitId);
+  if(visit) showVisitDetails(visit);
+});
 async function preparePhoto(file){
   if(!file || !file.type.startsWith('image/') || file.size>10*1024*1024) throw new Error('Bitte ein Bild mit höchstens 10 MB auswählen.');
   const url=URL.createObjectURL(file);
@@ -178,6 +205,7 @@ async function circlePage(slug,selectedDate){
   renderVisitor(c,data.visits,selectedDate);
 }
 function renderVisitor(c,visits,selectedDate){
+  visibleVisits=visits;
   let selected=selectedDate||dateLocal(new Date());
   app.innerHTML=`<section class="visitor-shell">
     <div class="circle-heading"><div><span class="eyebrow">Besucherkalender</span><h1>${esc(c.name)}</h1></div><button class="button profile-button" id="profile">Mein Profil</button></div>
@@ -194,9 +222,9 @@ function renderVisitor(c,visits,selectedDate){
     const future=nextVisit(visits);
     document.querySelector('#next-visit').innerHTML=future?`
       <div class="next-label">Nächster Besuch</div>
-      <div class="next-content">
-        <div>${renderPeople(visitPeople(future))}<span class="next-time">${esc(naturalDate(future.date))} · ${esc(future.template||`${future.start_time}–${future.end_time}`)}</span></div>
-      </div>`:`<div class="next-label">Nächster Besuch</div><div class="next-empty">Kein bevorstehender Besuch</div>`;
+      <button type="button" class="next-summary" data-visit-id="${attr(future.id)}" aria-label="Nächsten Besuch anzeigen">
+        ${renderPeople(visitPeople(future))}<span class="next-time">${esc(naturalDate(future.date))} · ${esc(future.template||`${future.start_time}–${future.end_time}`)} <span aria-hidden="true">ⓘ</span></span>
+      </button>`:`<div class="next-label">Nächster Besuch</div><div class="next-empty">Kein bevorstehender Besuch</div>`;
   }
   refreshNextVisit=updateNextVisit;
   function renderHorizon(){
@@ -488,9 +516,10 @@ async function holgerPage(slug){
   }catch{return joinPage(slug);}
 }
 function renderHolger(c,visits){
+  visibleVisits=visits;
   const sorted=[...visits].sort((a,b)=>(`${a.date}${a.start_time}`).localeCompare(`${b.date}${b.start_time}`)).filter(v=>v.date>=dateLocal(new Date()));
   const next=nextVisit(sorted);
-  app.innerHTML=`<section class="hero-card card"><p>${t.next}</p><div id="holger-next-people">${next?renderPeople(visitPeople(next)):`<h1>${t.noVisit}</h1>`}</div><p class="hero-time">${next?`${esc(naturalDate(next.date))} · ${esc(next.template?.toLowerCase()||`${next.start_time}–${next.end_time}`)}`:''}</p></section>
+  app.innerHTML=`<section class="hero-card card"><p>${t.next}</p><button type="button" class="hero-summary" id="holger-next" data-visit-id="${attr(next?.id || '')}" aria-label="Nächsten Besuch anzeigen" ${next?'':'hidden'}><span id="holger-next-people">${next?renderPeople(visitPeople(next)):''}</span><span class="hero-time">${next?`${esc(naturalDate(next.date))} · ${esc(next.template?.toLowerCase()||`${next.start_time}–${next.end_time}`)}`:''} <span aria-hidden="true">ⓘ</span></span></button><h1 id="holger-next-empty" ${next?'hidden':''}>${t.noVisit}</h1></section>
     <section class="holger-day today"><h2>Heute</h2>${renderTimeline(dateLocal(new Date()),visits.filter(v=>v.date===dateLocal(new Date())))}</section>
     <section class="holger-horizon" aria-label="Besuche der nächsten zwei Wochen">
       ${Array.from({length:14},(_,i)=>{
@@ -505,9 +534,13 @@ function renderHolger(c,visits){
     </section>`;
   refreshNextVisit=()=>{
     const upcoming=nextVisit(visits);
-    document.querySelector('#holger-next-people').innerHTML=upcoming ? renderPeople(visitPeople(upcoming)) : `<h1>${t.noVisit}</h1>`;
+    const button=document.querySelector('#holger-next');
+    button.hidden=!upcoming;
+    button.dataset.visitId=upcoming?.id || '';
+    document.querySelector('#holger-next-empty').hidden=!!upcoming;
+    document.querySelector('#holger-next-people').innerHTML=upcoming ? renderPeople(visitPeople(upcoming)) : '';
     document.querySelector('.hero-time').textContent=upcoming
-      ? `${naturalDate(upcoming.date)} · ${upcoming.template?.toLowerCase()||`${upcoming.start_time}–${upcoming.end_time}`}` : '';
+      ? `${naturalDate(upcoming.date)} · ${upcoming.template?.toLowerCase()||`${upcoming.start_time}–${upcoming.end_time}`} ⓘ` : '';
   };
   localStorage.setItem(`sokn-visits-${c.id}`,JSON.stringify(visits));
 }

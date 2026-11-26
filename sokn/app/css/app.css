@@ -199,6 +199,20 @@ body {
 
 .day-timeline { margin-top:12px; }
 .timeline-heading h3 { margin:0;font-size:22px; }
+.day-distance { margin:18px 0 20px;width:min(100%,calc(var(--steps) * 64px + 28px));max-width:560px; }
+.distance-line { position:relative;display:flex;align-items:center;justify-content:space-between;gap:4px;min-height:32px; }
+.distance-line::before { content:"";position:absolute;left:0;right:0;top:50%;height:4px;background:var(--md-sys-color-outline-variant);transform:translateY(-50%); }
+.distance-line.is-compact::before { height:0;border-top:4px dashed var(--md-sys-color-outline-variant); }
+.distance-dot { position:relative;z-index:1;display:block;flex:none;width:14px;height:14px;border:3px solid var(--md-sys-color-surface);border-radius:50%;background:var(--md-sys-color-outline); }
+.distance-dot.is-today,.distance-dot.is-selected { width:28px;height:28px;border:4px solid var(--md-sys-color-surface); }
+.distance-dot.is-today { background:var(--md-sys-color-tertiary); }
+.distance-dot.is-selected { background:var(--md-sys-color-primary); }
+.distance-gap { position:relative;z-index:1;padding:0 6px;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);font-size:24px;font-weight:900;line-height:1; }
+.distance-labels { display:flex;justify-content:space-between;gap:12px;font-size:16px; }
+.distance-labels strong:last-child { text-align:right; }
+.day-distance-today { display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:auto;font-size:16px; }
+.holger-day.today .distance-dot { border-color:var(--md-sys-color-primary-container); }
+.holger-day.today .distance-gap { background:var(--md-sys-color-primary-container); }
 .timeline-chart { --person-width:200px;position:relative;margin-top:12px; }
 .timeline-scale { margin-left:var(--person-width); }
 .timeline-chart.has-now .timeline-scale { padding-top:42px; }
@@ -217,6 +231,9 @@ body {
 .timeline-axis span:nth-child(4) { left:75%; }
 .timeline-axis span:nth-child(5) { right:0;transform:none; }
 .timeline-visit { display:grid;grid-template-columns:var(--person-width) minmax(0,1fr);align-items:center;min-height:84px;gap:0; }
+.timeline-visit-button { width:100%;padding:0;border:0;border-radius:12px;background:transparent;color:inherit;text-align:left; }
+.timeline-visit-button:hover { background:color-mix(in srgb,var(--md-sys-color-primary) 8%,transparent); }
+.timeline-visit-button:focus-visible,.next-summary:focus-visible,.hero-summary:focus-visible { outline:3px solid var(--md-sys-color-primary);outline-offset:3px; }
 .timeline-person { display:flex;align-items:center;gap:10px;padding:8px 10px 8px 0;min-width:0; }
 .timeline-track { position:relative;height:40px;border-radius:10px;background-color:var(--md-sys-color-surface-container-high);background-image:linear-gradient(to right,var(--md-sys-color-outline-variant) 1px,transparent 1px);background-size:25% 100%; }
 .timeline-interval { position:absolute;top:4px;bottom:4px;left:var(--start);width:var(--duration);min-width:3px;background:var(--md-sys-color-primary);border-radius:5px; }
@@ -231,6 +248,10 @@ body {
 .person-name { font-size:15px;font-weight:800;overflow-wrap:anywhere;line-height:1.15; }
 .next-content .person-name { margin:0;font-size:15px; }
 .next-time { display:block;margin-top:8px;font-size:17px;font-weight:700; }
+.next-summary,.hero-summary { width:100%;padding:0;border:0;background:transparent;color:inherit;text-align:left; }
+.next-summary { margin-top:8px; }
+.hero-summary:not([hidden]) { display:block; }
+.hero-time { display:block;font-size:var(--md-sys-typescale-headline); }
 .hero-card .people-list { margin:12px 0;gap:20px; }
 .hero-card .person { max-width:160px; }
 .hero-card .person-photo { width:104px;height:104px; }
@@ -240,6 +261,19 @@ body {
 .timeline-person { align-items:flex-start;flex-direction:column; }
 .timeline-person .person-name { display:block;margin:0;font-size:14px;white-space:normal; }
 .timeline-time { font-size:15px;font-weight:800;white-space:nowrap; }
+.visit-dialog { width:min(720px,calc(100% - 24px));max-height:calc(100% - 24px);padding:0;border:0;border-radius:28px;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface); }
+.visit-dialog::backdrop { background:rgb(20 27 44 / 65%); }
+.visit-dialog-content { padding:clamp(20px,4vw,36px); }
+.visit-dialog h2 { margin:0;font-size:clamp(30px,5vw,44px); }
+.visit-dialog-date { margin:12px 0 0;font-size:clamp(22px,4vw,30px);font-weight:800; }
+.visit-dialog-time { margin:4px 0 24px;font-size:clamp(20px,3vw,26px);font-weight:700; }
+.visit-dialog .people-list { gap:20px; }
+.visit-dialog .person { max-width:180px; }
+.visit-dialog .person-photo { width:clamp(112px,20vw,160px);height:clamp(112px,20vw,160px); }
+.visit-dialog .person-initial { font-size:56px; }
+.visit-dialog .person-name { font-size:clamp(20px,3vw,26px); }
+.visit-dialog-note { margin:24px 0 0;white-space:pre-wrap;overflow-wrap:anywhere; }
+.visit-dialog-close { margin-top:28px; }
 .profile-button { flex:none;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container); }
 .photo-remove { margin-top:12px;background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface); }
 .participant-picker { border:0;padding:0;margin:24px 0;min-width:0; }

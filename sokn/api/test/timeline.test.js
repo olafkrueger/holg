@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidTimeRange, localDate, nextVisit, renderTimeline } from '../../app/js/timeline.js';
+import { isValidTimeRange, localDate, nextVisit, renderDayDistance, renderTimeline } from '../../app/js/timeline.js';
 
 const now = new Date(2030, 0, 2, 12, 0);
 const visit = (name, start, end, date = localDate(now)) => ({
@@ -24,6 +24,24 @@ test('places visit intervals and current time on the same 24-hour scale', () => 
 test('shows now on an empty today, but not on another day', () => {
   assert.match(renderTimeline(localDate(now), [], now), /Jetzt 12:00/);
   assert.doesNotMatch(renderTimeline('2030-01-03', [], now), /timeline-now/);
+});
+
+test('shows how far the selected day is from today, including past and distant days', () => {
+  assert.match(renderDayDistance('2030-01-02',now),/>Heute</);
+  const tomorrow=renderDayDistance('2030-01-03',now);
+  assert.match(tomorrow,/Heute, Morgen/);
+  assert.match(tomorrow,/--steps:1/);
+  assert.equal((tomorrow.match(/class="distance-dot /g)||[]).length,2);
+  const threeDays=renderDayDistance('2030-01-05',now);
+  assert.match(threeDays,/In 3 Tagen/);
+  assert.match(threeDays,/--steps:3/);
+  assert.equal((threeDays.match(/class="distance-dot /g)||[]).length,4);
+  assert.match(renderDayDistance('2029-12-31',now),/Vor 2 Tagen, Heute/);
+  const distant=renderDayDistance('2030-02-02',now);
+  assert.match(distant,/In 31 Tagen/);
+  assert.match(distant,/distance-line is-compact/);
+  assert.match(distant,/--steps:8/);
+  assert.match(distant,/distance-gap/);
 });
 
 test('shows night at both ends of a chronological day', () => {
@@ -51,6 +69,7 @@ test('next visit skips visits already ended and escapes visitor names', () => {
 
 test('shows every participant and a safe photo in the timeline', () => {
   const row=visit('Franzi','09:00','10:00');
+  row.id='visit-1';
   row.people=[
     {display_name:'Franzi',avatar_url:'/api/circles/c/photos/users/u'},
     {display_name:'<Tim>',avatar_url:'/api/circles/c/photos/companions/p'},
@@ -61,6 +80,8 @@ test('shows every participant and a safe photo in the timeline', () => {
   assert.match(html,/src="\/api\/circles\/c\/photos\/companions\/p"/);
   assert.match(html,/&lt;Tim&gt;/);
   assert.match(html,/>Toni</);
+  assert.match(html,/<button[^>]*data-visit-id="visit-1"/);
+  assert.match(html,/aria-label="Besuch anzeigen: Franzi, &lt;Tim&gt;, Toni, 09:00 bis 10:00"/);
   assert.doesNotMatch(html,/javascript:/);
 });
 
