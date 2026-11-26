@@ -263,17 +263,24 @@ body {
 .timeline-time { font-size:15px;font-weight:800;white-space:nowrap; }
 .visit-dialog { width:min(720px,calc(100% - 24px));max-height:calc(100% - 24px);padding:0;border:0;border-radius:28px;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface); }
 .visit-dialog::backdrop { background:rgb(20 27 44 / 65%); }
-.visit-dialog-content { padding:clamp(20px,4vw,36px); }
-.visit-dialog h2 { margin:0;font-size:clamp(30px,5vw,44px); }
-.visit-dialog-date { margin:12px 0 0;font-size:clamp(22px,4vw,30px);font-weight:800; }
-.visit-dialog-time { margin:4px 0 24px;font-size:clamp(20px,3vw,26px);font-weight:700; }
+.visit-dialog-content { padding:clamp(20px,3vw,24px); }
+.visit-dialog h2 { margin:0;font-size:clamp(30px,5vw,36px); }
+.visit-dialog-date { margin:8px 0 0;font-size:clamp(20px,3vw,26px);font-weight:800; }
+.visit-dialog-time { margin:4px 0 12px;font-size:clamp(20px,3vw,24px);font-weight:700; }
+.visit-dialog .day-distance { margin:12px 0; }
 .visit-dialog .people-list { gap:20px; }
 .visit-dialog .person { max-width:180px; }
-.visit-dialog .person-photo { width:clamp(112px,20vw,160px);height:clamp(112px,20vw,160px); }
+.visit-dialog .person-photo { width:clamp(112px,18vw,128px);height:clamp(112px,18vw,128px); }
 .visit-dialog .person-initial { font-size:56px; }
 .visit-dialog .person-name { font-size:clamp(20px,3vw,26px); }
+.visit-dialog .day-timeline { margin:16px 0; }
+.visit-dialog .timeline-chart { --person-width:0px; }
+.visit-dialog .timeline-chart.has-now .timeline-scale { padding-top:36px; }
+.visit-dialog .timeline-phases { min-height:64px; }
+.visit-dialog .timeline-phase svg { width:32px;height:32px; }
+.visit-dialog .timeline-visit { grid-template-columns:minmax(0,1fr);min-height:48px; }
 .visit-dialog-note { margin:24px 0 0;white-space:pre-wrap;overflow-wrap:anywhere; }
-.visit-dialog-close { margin-top:28px; }
+.visit-dialog-close { position:sticky;bottom:0;z-index:3;margin-top:16px; }
 .profile-button { flex:none;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container); }
 .photo-remove { margin-top:12px;background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface); }
 .participant-picker { border:0;padding:0;margin:24px 0;min-width:0; }

@@ -26,6 +26,16 @@ test('shows now on an empty today, but not on another day', () => {
   assert.doesNotMatch(renderTimeline('2030-01-03', [], now), /timeline-now/);
 });
 
+test('detail timeline shows the selected visit and the current time without another visit button', () => {
+  const row=visit('Franzi','09:00','10:30');
+  const html=renderTimeline(localDate(now),[row],now,{detail:true});
+  assert.match(html,/--start:37\.5%;--duration:6\.25%/);
+  assert.match(html,/Jetzt 12:00/);
+  assert.match(html,/aria-label="Besuch von 09:00 bis 10:30 Uhr"/);
+  assert.doesNotMatch(html,/<button|day-distance/);
+  assert.doesNotMatch(renderTimeline('2030-01-03',[row],now,{detail:true}),/timeline-now/);
+});
+
 test('shows how far the selected day is from today, including past and distant days', () => {
   assert.match(renderDayDistance('2030-01-02',now),/>Heute</);
   const tomorrow=renderDayDistance('2030-01-03',now);

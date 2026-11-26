@@ -17,14 +17,16 @@ function attr(s=''){return esc(s).replace(/"/g,'&quot;');}
 function showVisitDetails(visit){
   const dialog=document.createElement('dialog');
   dialog.className='visit-dialog';
+  const now=new Date();
   const date=new Date(`${visit.date}T12:00:00`).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
   dialog.setAttribute('aria-labelledby','visit-dialog-title');
   dialog.innerHTML=`<div class="visit-dialog-content">
-    <h2 id="visit-dialog-title">Wer kommt?</h2>
+    <h2 id="visit-dialog-title" tabindex="-1" autofocus>Wer kommt?</h2>
     <p class="visit-dialog-date">${esc(naturalDate(visit.date))} · ${esc(date)}</p>
     <p class="visit-dialog-time">${esc(visit.start_time)}–${esc(visit.end_time)} Uhr${visit.template ? ` · ${esc(visit.template)}` : ''}</p>
-    ${renderDayDistance(visit.date)}
+    ${renderDayDistance(visit.date,now)}
     ${renderPeople(visitPeople(visit))}
+    ${renderTimeline(visit.date,[visit],now,{detail:true})}
     ${visit.note ? `<p class="visit-dialog-note">${esc(visit.note)}</p>` : ''}
     <button class="button wide visit-dialog-close" type="button">Schließen</button>
   </div>`;

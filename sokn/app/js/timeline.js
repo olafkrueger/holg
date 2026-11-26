@@ -80,7 +80,7 @@ export function renderDayDistance(date, now = new Date()) {
   </div>`;
 }
 
-export function renderTimeline(date, visits, now = new Date()) {
+export function renderTimeline(date, visits, now = new Date(), {detail = false} = {}) {
   const isToday = date === localDate(now);
   const rows = [...visits].sort((a, b) => a.start_time.localeCompare(b.start_time)).map(visit => {
     const start = minutes(visit.start_time);
@@ -88,6 +88,9 @@ export function renderTimeline(date, visits, now = new Date()) {
     if (start === null || end === null || end < start) return '';
     const left = start / DAY_MINUTES * 100;
     const width = (end - start) / DAY_MINUTES * 100;
+    if (detail) return `<div class="timeline-visit">
+      <div class="timeline-track" role="img" aria-label="Besuch von ${escapeHtml(visit.start_time)} bis ${escapeHtml(visit.end_time)} Uhr"><span class="timeline-interval" style="--start:${left}%;--duration:${width}%"></span></div>
+    </div>`;
     return `<button type="button" class="timeline-visit timeline-visit-button" data-visit-id="${escapeHtml(visit.id || '')}" aria-label="Besuch anzeigen: ${escapeHtml(visitPeople(visit).map(p=>p.display_name || 'Besuch').join(', '))}, ${escapeHtml(visit.start_time)} bis ${escapeHtml(visit.end_time)}">
       <span class="timeline-person">${renderPeople(visitPeople(visit))}<span class="timeline-time">${escapeHtml(visit.start_time)}–${escapeHtml(visit.end_time)} <span aria-hidden="true">ⓘ</span></span></span>
       <span class="timeline-track" aria-hidden="true"><span class="timeline-interval" style="--start:${left}%;--duration:${width}%"></span></span>
@@ -95,7 +98,7 @@ export function renderTimeline(date, visits, now = new Date()) {
   }).join('');
   return `<section class="day-timeline" aria-label="Tagesverlauf">
     <div class="timeline-heading"><h3>Tagesverlauf</h3></div>
-    ${renderDayDistance(date,now)}
+    ${detail ? '' : renderDayDistance(date,now)}
     <div class="timeline-chart ${isToday ? 'has-now' : ''}">
       <div class="timeline-scale">
         <div class="timeline-phases" aria-label="Tageszeiten von Mitternacht bis Mitternacht">
