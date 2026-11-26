@@ -314,8 +314,13 @@ async function visitorFlow(c,selectedDate){
       <fieldset class="participant-picker">
         <legend>Wer kommt mit?</legend>
         <p>Du bist automatisch dabei. Wähle weitere Personen aus.</p>
-        <div id="participant-list" class="participant-list"></div>
-        <button class="button add-person" type="button" id="add-person">＋ Person ohne Konto hinzufügen</button>
+        <h3>Personen mit Konto</h3>
+        <p>Wähle Personen, die diesem Kalender bereits beigetreten sind.</p>
+        <div id="member-list" class="participant-list"></div>
+        <h3>Weitere Personen</h3>
+        <p>Zum Beispiel Kinder oder Personen, die noch nicht im Kalender sind. Diese Einträge sind nicht mit einem Konto verbunden.</p>
+        <div id="companion-list" class="participant-list"></div>
+        <button class="button add-person" type="button" id="add-person">＋ Weitere Person hinzufügen</button>
         <div id="companion-form" class="companion-form" hidden>
           <label for="companion-name">Name
             <input class="field" id="companion-name" maxlength="80" autocomplete="off">
@@ -356,14 +361,17 @@ async function visitorFlow(c,selectedDate){
       document.querySelector('#companion-name').focus();
     }
     function renderParticipants(){
-      const options=[
-        ...people.members.filter(p=>p.id!==people.me).map(p=>({...p,type:'user'})),
-        ...people.companions.map(p=>({...p,type:'companion'}))
-      ];
-      document.querySelector('#participant-list').innerHTML=options.map(p=>{
-        const key=`${p.type}:${p.id}`;
-        return `<div class="participant-wrap"><label class="participant-option"><input type="checkbox" data-person-type="${esc(p.type)}" data-person-id="${esc(p.id)}" ${selectedPeople.has(key)?'checked':''}>${renderPeople([p])}</label>${p.type==='companion'?`<button class="edit-person" type="button" data-edit-person="${esc(p.id)}">Bearbeiten</button>`:''}</div>`;
-      }).join('');
+      function renderOptions(options,type){
+        return options.map(p=>{
+          const key=`${type}:${p.id}`;
+          return `<div class="participant-wrap"><label class="participant-option"><input type="checkbox" data-person-type="${esc(type)}" data-person-id="${esc(p.id)}" ${selectedPeople.has(key)?'checked':''}>${renderPeople([p])}</label>${type==='companion'?`<button class="edit-person" type="button" data-edit-person="${esc(p.id)}">Bearbeiten</button>`:''}</div>`;
+        }).join('');
+      }
+      const members=people.members.filter(p=>p.id!==people.me);
+      document.querySelector('#member-list').innerHTML=members.length
+        ? renderOptions(members,'user')
+        : '<p>Noch niemand anderes ist beigetreten. Teile den Kalender-Link, damit weitere Personen hier erscheinen.</p>';
+      document.querySelector('#companion-list').innerHTML=renderOptions(people.companions,'companion');
       document.querySelectorAll('[data-person-id]').forEach(input=>input.onchange=()=>{
         const key=`${input.dataset.personType}:${input.dataset.personId}`;
         if(input.checked) selectedPeople.add(key); else selectedPeople.delete(key);
