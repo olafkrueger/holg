@@ -86,27 +86,24 @@ main { max-width:980px; margin:auto; padding:20px; }
 }
 
 body {
-  background:
-    radial-gradient(circle at 100% 0, color-mix(in srgb,var(--md-sys-color-primary-container) 70%,transparent), transparent 30rem),
-    var(--md-sys-color-surface);
+  background:var(--md-sys-color-surface);
 }
 .top-app-bar {
   border:0;
-  background:color-mix(in srgb,var(--md-sys-color-surface) 92%,transparent);
-  backdrop-filter:blur(16px);
-  box-shadow:0 1px 0 color-mix(in srgb,var(--md-sys-color-outline) 20%,transparent);
+  background:var(--md-sys-color-surface);
+  box-shadow:none;
 }
 .brand-mark {
-  background:var(--md-sys-color-primary);
-  color:var(--md-sys-color-on-primary);
-  box-shadow:0 6px 18px color-mix(in srgb,var(--md-sys-color-primary) 24%,transparent);
+  background:var(--md-sys-color-tertiary);
+  color:var(--md-sys-color-on-tertiary-container);
+  box-shadow:none;
 }
 .calendar-card {
   margin-bottom:18px;
-  border:1px solid color-mix(in srgb,var(--md-sys-color-primary) 12%,var(--md-sys-color-outline));
-  border-radius:32px;
-  background:color-mix(in srgb,var(--md-sys-color-surface) 82%,var(--md-sys-color-primary-container));
-  box-shadow:var(--md-sys-elevation-2);
+  border:1px solid var(--md-sys-color-outline-variant);
+  border-radius:24px;
+  background:var(--md-sys-color-surface-container-low);
+  box-shadow:none;
   padding:18px;
 }
 .calendar-toolbar { display:grid;grid-template-columns:64px 1fr 64px;align-items:center;text-align:center; }
@@ -127,7 +124,7 @@ body {
   overflow:hidden;
   transition:transform 120ms var(--md-sys-easing),background 120ms var(--md-sys-easing);
 }
-.calendar-day:hover { transform:translateY(-2px);background:var(--md-sys-color-primary-container); }
+.calendar-day:hover { transform:none;background:var(--md-sys-color-primary-container); }
 .calendar-day.outside { border:0;background:transparent; }
 .calendar-day.today { border:3px solid var(--md-sys-color-primary); }
 .calendar-day.today .day-number { background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary); }
@@ -144,7 +141,7 @@ body {
 }
 .visit-row { background:color-mix(in srgb,var(--md-sys-color-primary-container) 32%,var(--md-sys-color-surface));border:1px solid color-mix(in srgb,var(--md-sys-color-primary) 12%,transparent); }
 .empty-day { color:var(--md-sys-color-primary); }
-.fab { background:var(--md-sys-color-primary);box-shadow:0 10px 24px rgb(23 107 115 / 28%); }
+.fab { background:var(--md-sys-color-primary);box-shadow:none; }
 @media(max-width:620px){
   .calendar-card { padding:10px;border-radius:24px; }
   .calendar-weekdays,.calendar-grid { gap:3px; }
