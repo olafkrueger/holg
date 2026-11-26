@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidTimeRange, localDate, nextVisit, renderTimeline, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
+import { isValidTimeRange, localDate, nextVisit, upcomingVisits, renderTimeline, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
 
 const now = new Date(2030, 0, 2, 12, 0);
 const visit = (name, start, end, date = localDate(now)) => ({
@@ -81,6 +81,20 @@ test('next visit skips visits already ended and escapes visitor names', () => {
   assert.equal(nextVisit(visits, now).display_name, '<Sam>');
   assert.match(renderTimeline(localDate(now), visits, now), /&lt;Sam&gt;/);
   assert.doesNotMatch(renderTimeline(localDate(now), visits, now), /<Sam>/);
+});
+
+test('upcoming visits include every ongoing and future visit in chronological order', () => {
+  const visits = [
+    visit('Tomorrow','08:00','09:00','2030-01-03'),
+    visit('Later','15:00','16:00'),
+    visit('Ended','09:00','11:30'),
+    visit('Ongoing','11:00','12:30'),
+    visit('Yesterday','20:00','21:00','2030-01-01'),
+    visit('Much later','10:00','11:00','2030-03-01')
+  ];
+  assert.deepEqual(upcomingVisits(visits,now).map(v=>v.display_name),['Ongoing','Later','Tomorrow','Much later']);
+  assert.deepEqual(upcomingVisits(visits,new Date(2030,0,2,12,31)).map(v=>v.display_name),['Later','Tomorrow','Much later']);
+  assert.equal(upcomingVisits([],now).length,0);
 });
 
 test('shows every participant and a safe photo in the timeline', () => {

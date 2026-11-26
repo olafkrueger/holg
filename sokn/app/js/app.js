@@ -1,5 +1,5 @@
 import {de as t} from './i18n.js';
-import {isValidTimeRange, nextVisit, renderPeople, renderTimeline, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
+import {isValidTimeRange, upcomingVisits, renderPeople, renderTimeline, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
@@ -69,6 +69,46 @@ function naturalDate(date){
   if(date===a)return t.today;
   if(date===b)return t.tomorrow;
   return d.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
+}
+function setupUpcoming(container,visits,tablet=false){
+  let signature=null;
+  let expanded=false;
+  function updateExpanded(){
+    container.querySelectorAll('.upcoming-card').forEach((card,index)=>{card.hidden=!expanded && index>=3;});
+    const button=container.querySelector('.upcoming-expand');
+    if(button){
+      button.setAttribute('aria-expanded',String(expanded));
+      button.textContent=expanded?'Weniger anzeigen':`Alle anzeigen (${container.querySelectorAll('.upcoming-card').length})`;
+    }
+  }
+  container.addEventListener('click',event=>{
+    if(!event.target.closest('.upcoming-expand')) return;
+    expanded=!expanded;
+    updateExpanded();
+  });
+  return ()=>{
+    const future=upcomingVisits(visits);
+    const key=JSON.stringify(future.map(visit=>visit.id));
+    if(key===signature) return;
+    signature=key;
+    container.innerHTML=`<h2 class="upcoming-title">${tablet?esc(t.next):'Nächste Besuche'}</h2>
+      ${future.length ? `<div class="upcoming-list" id="upcoming-list">
+        ${future.map((visit,index)=>{
+          const people=visitPeople(visit);
+          const names=people.map(person=>person.display_name || 'Besuch').join(' + ');
+          const date=naturalDate(visit.date);
+          const time=`${visit.start_time}–${visit.end_time}`;
+          return `<button type="button" class="upcoming-card" data-visit-id="${attr(visit.id)}" aria-label="Besuch anzeigen: ${attr(names)}, ${attr(date)}, ${attr(time)}" ${!expanded && index>=3?'hidden':''}>
+            <span class="upcoming-avatars ${people.length>1?'multiple':''}">${renderPeople(people)}</span>
+            <span class="upcoming-info"><strong class="upcoming-names">${esc(names)}</strong>
+              <span class="upcoming-date">${esc(date)} · ${esc(time)} <span aria-hidden="true">ⓘ</span></span>
+            </span>
+          </button>`;
+        }).join('')}
+      </div>
+      ${future.length>3?'<button type="button" class="upcoming-expand" aria-controls="upcoming-list"></button>':''}` : `<p class="upcoming-empty">${tablet?esc(t.noVisit):'Kein bevorstehender Besuch'}</p>`}`;
+    updateExpanded();
+  };
 }
 function viewSwitch(){
   return `<div class="view-switch" role="group" aria-label="Ansicht">
@@ -268,21 +308,13 @@ function renderVisitor(c,visits,selectedDate){
     </section>
     <section class="overview-panel" id="week-overview" aria-label="Übersicht über sieben Tage" hidden></section>
   </section><button class="fab" id="fab">＋ ${t.coming}</button>`;
-  function updateNextVisit(){
-    const future=nextVisit(visits);
-    document.querySelector('#next-visit').innerHTML=future?`
-      <div class="next-label">Nächster Besuch</div>
-      <button type="button" class="next-summary" data-visit-id="${attr(future.id)}" aria-label="Nächsten Besuch anzeigen">
-        ${renderPeople(visitPeople(future))}<span class="next-time">${esc(naturalDate(future.date))} · ${esc(future.template||`${future.start_time}–${future.end_time}`)} <span aria-hidden="true">ⓘ</span></span>
-      </button>`:`<div class="next-label">Nächster Besuch</div><div class="next-empty">Kein bevorstehender Besuch</div>`;
-  }
-  refreshNextVisit=updateNextVisit;
+  refreshNextVisit=setupUpcoming(app.querySelector('#next-visit'),visits);
   function renderHorizon(){
     const today=new Date();
     const todayDate=dateLocal(today);
     const base=selected < shiftDate(todayDate,-7) || selected > shiftDate(todayDate,13)
       ? new Date(`${selected}T12:00:00`) : today;
-    updateNextVisit();
+    refreshNextVisit();
 
     document.querySelector('#horizon-rail').innerHTML=Array.from({length:21},(_,i)=>{
       const d=new Date(base); d.setDate(base.getDate()+i-7);
@@ -585,9 +617,7 @@ async function holgerPage(slug){
 }
 function renderHolger(c,visits){
   visibleVisits=visits;
-  const sorted=[...visits].sort((a,b)=>(`${a.date}${a.start_time}`).localeCompare(`${b.date}${b.start_time}`)).filter(v=>v.date>=dateLocal(new Date()));
-  const next=nextVisit(sorted);
-  app.innerHTML=`<section class="hero-card card"><p>${t.next}</p><button type="button" class="hero-summary" id="holger-next" data-visit-id="${attr(next?.id || '')}" aria-label="Nächsten Besuch anzeigen" ${next?'':'hidden'}><span id="holger-next-people">${next?renderPeople(visitPeople(next)):''}</span><span class="hero-time">${next?`${esc(naturalDate(next.date))} · ${esc(next.template?.toLowerCase()||`${next.start_time}–${next.end_time}`)}`:''} <span aria-hidden="true">ⓘ</span></span></button><h1 id="holger-next-empty" ${next?'hidden':''}>${t.noVisit}</h1></section>
+  app.innerHTML=`<section class="hero-card card" id="next-visit"></section>
     ${viewSwitch()}
     <div id="holger-day-view">
     <section class="holger-day today"><h2>Heute</h2>${renderTimeline(dateLocal(new Date()),visits.filter(v=>v.date===dateLocal(new Date())))}</section>
@@ -611,16 +641,8 @@ function renderHolger(c,visits){
     overview.hidden=!week;
     if(week) renderOverview();
   });
-  refreshNextVisit=()=>{
-    const upcoming=nextVisit(visits);
-    const button=document.querySelector('#holger-next');
-    button.hidden=!upcoming;
-    button.dataset.visitId=upcoming?.id || '';
-    document.querySelector('#holger-next-empty').hidden=!!upcoming;
-    document.querySelector('#holger-next-people').innerHTML=upcoming ? renderPeople(visitPeople(upcoming)) : '';
-    document.querySelector('.hero-time').textContent=upcoming
-      ? `${naturalDate(upcoming.date)} · ${upcoming.template?.toLowerCase()||`${upcoming.start_time}–${upcoming.end_time}`} ⓘ` : '';
-  };
+  refreshNextVisit=setupUpcoming(app.querySelector('#next-visit'),visits,true);
+  refreshNextVisit();
   localStorage.setItem(`sokn-visits-${c.id}`,JSON.stringify(visits));
 }
 
@@ -659,7 +681,7 @@ setInterval(()=>{
     route();
     return;
   }
-  if(document.querySelector('#next-visit, .hero-card')) refreshNextVisit();
+  if(document.querySelector('#next-visit')) refreshNextVisit();
   document.querySelectorAll('.day-timeline').forEach(timeline=>{
     const label=timeline.querySelector('.timeline-now-label');
     if (!label) return;

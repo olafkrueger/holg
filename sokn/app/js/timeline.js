@@ -28,13 +28,17 @@ export function isValidTimeRange(start, end) {
     startMinutes % 30 === 0 && endMinutes % 30 === 0 && endMinutes > startMinutes;
 }
 
-export function nextVisit(visits, now = new Date()) {
+export function upcomingVisits(visits, now = new Date()) {
   const today = localDate(now);
   const currentMinute = now.getHours() * 60 + now.getMinutes();
   return [...visits].filter(visit => {
     const end = minutes(visit.end_time);
     return end !== null && (visit.date > today || (visit.date === today && end >= currentMinute));
-  }).sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`))[0];
+  }).sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`));
+}
+
+export function nextVisit(visits, now = new Date()) {
+  return upcomingVisits(visits, now)[0];
 }
 
 export function visitPeople(visit) {

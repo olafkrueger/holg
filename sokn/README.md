@@ -4,6 +4,8 @@ S\u00f3kn is a private visitor circle for one person and the family or friends w
 
 The calendar can switch between a single-day view and a horizontally scrollable seven-day timeline. Each day repeats the 24-hour scale; select a day before booking. The paired tablet can also use the timeline.
 
+Upcoming visits appear at the top as a chronological list with photos. The list can be expanded to show all visits.
+
 ## Run locally
 
 ```powershell
