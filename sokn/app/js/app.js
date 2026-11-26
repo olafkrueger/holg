@@ -740,7 +740,7 @@ setInterval(()=>{
   document.querySelectorAll('.sun-view').forEach(view=>{
     const position=sunPosition(now);
     const scene=view.querySelector('.sun-scene');
-    scene.style.setProperty('--sun-x',`${position.x}%`);
+    view.style.setProperty('--sun-x',`${position.x}%`);
     scene.style.setProperty('--sun-y',`${position.y}%`);
     scene.querySelector('.sun-icon').toggleAttribute('hidden',!position.day);
     scene.querySelector('.moon-icon').toggleAttribute('hidden',position.day);

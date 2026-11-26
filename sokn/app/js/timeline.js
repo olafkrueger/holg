@@ -138,9 +138,9 @@ export function renderTodaySun(visits, now = new Date()) {
       <span class="sun-track" aria-hidden="true"><span class="timeline-interval" style="--start:${start / DAY_MINUTES * 100}%;--duration:${(end - start) / DAY_MINUTES * 100}%"></span></span>
     </button>`;
   }).join('');
-  return `<section class="sun-view" aria-label="Schematischer Tagesbogen">
+  return `<section class="sun-view" aria-label="Schematischer Tagesbogen" style="--sun-x:${position.x}%">
     <div class="sun-plot">
-      <div class="sun-scene" style="--sun-x:${position.x}%;--sun-y:${position.y}%">
+      <div class="sun-scene" style="--sun-y:${position.y}%">
         <svg class="sun-landscape" viewBox="0 0 800 240" preserveAspectRatio="none" aria-hidden="true">
           <path class="sun-night" d="M0 0H200V240H0z M600 0H800V240H600z"/>
           <path class="sun-path" d="M200 180 Q400 -80 600 180"/>
@@ -156,6 +156,7 @@ export function renderTodaySun(visits, now = new Date()) {
       <p class="sun-caption">Schematisch, keine echten Sonnenzeiten</p>
     </div>
     <div class="sun-visits">${rows}</div>
+    <div class="sun-now-overlay" aria-hidden="true"><span class="sun-now-line"></span></div>
   </section>`;
 }
 

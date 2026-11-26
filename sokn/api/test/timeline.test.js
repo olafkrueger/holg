@@ -75,7 +75,9 @@ test('sun view aligns all visits with the day, including overlapping and night v
     {...visit('Invalid','09:00','09:00'),id:'invalid'}
   ];
   const html=renderTodaySun(visits,now);
-  assert.match(html,/--sun-x:50%;--sun-y:20\.833333333333336%/);
+  assert.match(html,/class="sun-view"[^>]*--sun-x:50%/);
+  assert.match(html,/--sun-y:20\.833333333333336%/);
+  assert.match(html,/class="sun-now-overlay" aria-hidden="true"><span class="sun-now-line">/);
   assert.match(html,/class="sun-icon"\s+viewBox=/);
   assert.match(html,/class="moon-icon" hidden/);
   assert.match(html,/Jetzt 12:00/);
@@ -86,6 +88,7 @@ test('sun view aligns all visits with the day, including overlapping and night v
   assert.match(html,/&lt;Sam&gt;/);
   assert.doesNotMatch(html,/data-visit-id="tomorrow"|data-visit-id="invalid"/);
   const empty=renderTodaySun([],new Date(2030,0,2,23,59));
+  assert.match(empty,/class="sun-now-line"/);
   assert.match(empty,/class="sun-icon" hidden/);
   assert.match(empty,/class="moon-icon"\s+viewBox=/);
   assert.match(empty,/Jetzt 23:59/);
