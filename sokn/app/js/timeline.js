@@ -15,14 +15,11 @@ function minutes(time) {
   return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 }
 
-export function endTimeForDuration(start, hours) {
+export function isValidTimeRange(start, end) {
   const startMinutes = minutes(start);
-  const duration = Number(hours);
-  if (startMinutes === null || startMinutes % 30 !== 0 ||
-      !Number.isFinite(duration) || duration <= 0 || !Number.isInteger(duration * 2)) return null;
-  const end = startMinutes + duration * 60;
-  if (end >= DAY_MINUTES) return null;
-  return `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`;
+  const endMinutes = minutes(end);
+  return startMinutes !== null && endMinutes !== null &&
+    startMinutes % 30 === 0 && endMinutes % 30 === 0 && endMinutes > startMinutes;
 }
 
 export function nextVisit(visits, now = new Date()) {

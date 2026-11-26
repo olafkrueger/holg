@@ -1,6 +1,6 @@
 * { box-sizing:border-box; }
 body { margin:0; background:var(--md-sys-color-surface); color:var(--md-sys-color-on-surface); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; font-size:var(--md-sys-typescale-body); }
-button,input,select { font:inherit; }
+button,input { font:inherit; }
 button { cursor:pointer; }
 .top-app-bar { min-height:72px; display:flex; align-items:center; gap:12px; padding:12px 20px; border-bottom:1px solid var(--md-sys-color-outline); background:var(--md-sys-color-surface); }
 .brand { display:flex; align-items:center; gap:10px; font-size:24px; }
@@ -234,7 +234,6 @@ body {
 .custom-time-fields:not([hidden]) { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0; }
 .custom-time-fields label { display:grid;gap:8px;font-weight:700; }
 .custom-time-fields input { min-width:0; }
-.booking-end { grid-column:1 / -1;margin:0;font-weight:700; }
 .booking-error { grid-column:1 / -1;margin:0;color:#8a3525;font-weight:700; }
 .button:disabled { opacity:.5;cursor:not-allowed; }
 .holger-day > h2 { margin:0 0 12px; }

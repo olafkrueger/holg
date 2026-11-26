@@ -1,5 +1,5 @@
 import {de as t} from './i18n.js';
-import {endTimeForDuration, nextVisit, renderTimeline} from './timeline.js';
+import {isValidTimeRange, nextVisit, renderTimeline} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
@@ -234,19 +234,15 @@ function visitorFlow(c,selectedDate){
       <div class="chip-row">${visitTemplates.map(({name,start,end})=>{
         return `<button class="chip booking-time" data-template="${esc(name)}" aria-pressed="false"><strong>${esc(name)}</strong><span>${start}–${end}</span></button>`;
       }).join('')}
-        <button class="chip booking-time" id="custom-time" aria-pressed="false"><strong>Eigene Uhrzeit</strong><span>Beginn und Dauer wählen</span></button>
+        <button class="chip booking-time" id="custom-time" aria-pressed="false"><strong>Eigene Uhrzeit</strong><span>Beginn und Ende wählen</span></button>
       </div>
       <div class="custom-time-fields" id="custom-time-fields" hidden>
         <label for="start-time">Beginn
           <input class="field" id="start-time" type="time" step="1800" value="09:00" aria-describedby="time-error" required>
         </label>
-        <label for="duration">Dauer
-          <select class="field" id="duration" aria-describedby="time-error">${Array.from({length:47},(_,i)=>{
-            const hours=(i+1)/2;
-            return `<option value="${hours}" ${hours===1?'selected':''}>${String(hours).replace('.',',')} ${hours===1?'Stunde':'Stunden'}</option>`;
-          }).join('')}</select>
+        <label for="end-time">Ende
+          <input class="field" id="end-time" type="time" step="1800" value="10:00" aria-describedby="time-error" required>
         </label>
-        <p class="booking-end" id="calculated-end" aria-live="polite"></p>
         <p class="booking-error" id="time-error" role="status" hidden></p>
       </div>
       <label class="booking-field" for="other-date">Datum ändern (optional)
@@ -259,33 +255,29 @@ function visitorFlow(c,selectedDate){
     </section>`;
     const dateInput=document.querySelector('#other-date');
     const startInput=document.querySelector('#start-time');
-    const durationInput=document.querySelector('#duration');
-    const calculatedEnd=document.querySelector('#calculated-end');
+    const endInput=document.querySelector('#end-time');
     const customButton=document.querySelector('#custom-time');
     const customFields=document.querySelector('#custom-time-fields');
     const timeError=document.querySelector('#time-error');
     const saveButton=document.querySelector('#save');
     function updateCustomTime(){
-      const end=endTimeForDuration(startInput.value,durationInput.value);
-      const valid=end!==null;
-      const startIsValid=Boolean(startInput.value) && !startInput.validity.stepMismatch && !startInput.validity.badInput;
-      calculatedEnd.textContent=end ? `Ende: ${end} Uhr` : '';
+      const valid=isValidTimeRange(startInput.value,endInput.value);
+      const startIsValid=startInput.validity.valid;
+      const endIsValid=endInput.validity.valid;
       timeError.hidden=valid;
-      timeError.textContent=startIsValid
-        ? 'Der Besuch muss vor Mitternacht am selben Tag enden.'
-        : 'Bitte einen Beginn im 30-Minuten-Raster wählen.';
+      timeError.textContent=startIsValid && endIsValid
+        ? 'Das Ende muss nach dem Beginn am selben Tag liegen.'
+        : 'Bitte Beginn und Ende im 30-Minuten-Raster wählen.';
       startInput.setAttribute('aria-invalid',String(!startIsValid));
-      durationInput.setAttribute('aria-invalid',String(startIsValid && !valid));
+      endInput.setAttribute('aria-invalid',String(!endIsValid || (startIsValid && !valid)));
       saveButton.disabled=!valid;
     }
     startInput.addEventListener('input',updateCustomTime);
-    durationInput.addEventListener('change',updateCustomTime);
+    endInput.addEventListener('input',updateCustomTime);
     customButton.onclick=()=>{
       if(!customTime && visitState.time && visitState.end){
         startInput.value=visitState.time;
-        const [startHour,startMinute]=visitState.time.split(':').map(Number);
-        const [endHour,endMinute]=visitState.end.split(':').map(Number);
-        durationInput.value=String(((endHour-startHour)*60+endMinute-startMinute)/60);
+        endInput.value=visitState.end;
       }
       customTime=true;
       visitState.template='';
@@ -319,14 +311,13 @@ function visitorFlow(c,selectedDate){
     });
     saveButton.onclick=async()=>{
       if(!dateInput.reportValidity())return;
-      const customEnd=customTime ? endTimeForDuration(startInput.value,durationInput.value) : null;
-      if(customTime && customEnd===null){
+      if(customTime && !isValidTimeRange(startInput.value,endInput.value)){
         updateCustomTime();
         return;
       }
       visitState.date=dateInput.value;
       visitState.note=document.querySelector('#note').value;
-      const [start,end]=customTime ? [startInput.value,customEnd] : templateTimes(visitState.template);
+      const [start,end]=customTime ? [startInput.value,endInput.value] : templateTimes(visitState.template);
       try{await api(`/api/circles/${c.id}/visits`,{method:'POST',body:JSON.stringify({date:visitState.date,start_time:start,end_time:end,template:visitState.template,note:visitState.note})});back.hidden=true;circlePage(location.pathname.split('/')[2],visitState.date);}
       catch(e){alert(e.message);}
     };
