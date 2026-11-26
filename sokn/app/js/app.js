@@ -141,19 +141,17 @@ function route(){
     const parts=path.split('/').filter(Boolean);
     if(parts.length>=4&&parts[2]==='admin') return generic();
     const slug=parts[1];
-    api('/api/device').then(device=>{
-      holgerPage(slug);
-    }).catch(()=>circlePage(slug));
-  } else if(path.startsWith('/pair/')) pairingPage(path.split('/')[2]);
-  else if(path==='/' ) api('/api/device').then(async d=>{
-    const slug=await fetch(`/api/circles/by-slug/__device__`).catch(()=>null);
-    try{
-      const c=(await api('/api/device'));
-      const data=await api(`/api/circles/${c.circle.id}/visits`);
-      renderHolger({id:c.circle.id,name:c.circle.name},data.visits);
-    }catch(){home();}
-  }).catch(()=>home());
-  else home();
+    api('/api/device').then(()=>holgerPage(slug)).catch(()=>circlePage(slug));
+  }else if(path.startsWith('/pair/')){
+    pairingPage(path.split('/')[2]);
+  }else if(path==='/' ){
+    api('/api/device').then(async device=>{
+      const data=await api(`/api/circles/${device.circle.id}/visits`);
+      renderHolger({id:device.circle.id,name:device.circle.name},data.visits);
+    }).catch(()=>home());
+  }else{
+    home();
+  }
 }
 
 route();
