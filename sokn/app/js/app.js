@@ -147,51 +147,49 @@ async function circlePage(slug){
 }
 function renderVisitor(c,visits){
   let selected=dateLocal(new Date());
-  let monthDate=new Date(new Date().getFullYear(),new Date().getMonth(),1);
   app.innerHTML=`<section class="visitor-shell">
     <div class="circle-heading"><div><span class="eyebrow">Besucherkalender</span><h1>${esc(c.name)}</h1></div><div class="avatar">${esc(c.name?.charAt(0)||'H')}</div></div>
-    <section class="calendar-card" aria-label="Kalender">
-      <div class="calendar-toolbar">
-        <button class="icon-button" id="prev-month" aria-label="Vorheriger Monat">‹</button>
-        <h2 id="month-title"></h2>
-        <button class="icon-button" id="next-month" aria-label="Nächster Monat">›</button>
-      </div>
-      <div class="calendar-weekdays" aria-hidden="true">
-        ${['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=>`<span>${d}</span>`).join('')}
-      </div>
-      <div class="calendar-grid" id="calendar-grid"></div>
+    <section class="horizon-card" aria-label="Eine Woche zurück bis zwei Wochen voraus">
+      <div id="next-visit" class="next-visit"></div>
+      <div class="horizon-rail" id="horizon-rail"></div>
     </section>
     <section class="day-panel">
       <div class="day-title" id="day-title"></div>
       <div id="day-visits"></div>
     </section>
   </section><button class="fab" id="fab">＋ ${t.coming}</button>`;
-  function renderCalendar(){
-    document.querySelector('#month-title').textContent=monthDate.toLocaleDateString('de-DE',{month:'long',year:'numeric'});
-    const first=new Date(monthDate.getFullYear(),monthDate.getMonth(),1);
-    const offset=(first.getDay()+6)%7;
-    const daysInMonth=new Date(monthDate.getFullYear(),monthDate.getMonth()+1,0).getDate();
-    const total=Math.ceil((offset+daysInMonth)/7)*7;
-    document.querySelector('#calendar-grid').innerHTML=Array.from({length:total},(_,i)=>{
-      const day=i-offset+1;
-      if(day<1||day>daysInMonth)return `<div class="calendar-day outside"></div>`;
-      const d=new Date(monthDate.getFullYear(),monthDate.getMonth(),day);
+  function renderHorizon(){
+    const today=new Date();
+    const sorted=[...visits].sort((a,b)=>(`${a.date}${a.start_time}`).localeCompare(`${b.date}${b.start_time}`));
+    const future=sorted.find(v=>v.date>=dateLocal(today));
+    document.querySelector('#next-visit').innerHTML=future?`
+      <div class="next-label">Nächster Besuch</div>
+      <div class="next-content">
+        <div class="next-avatar">${esc(future.display_name?.[0]||'B')}</div>
+        <div><strong>${esc(future.display_name||'Besuch')}</strong><span>${esc(naturalDate(future.date))} · ${esc(future.template||`${future.start_time}–${future.end_time}`)}</span></div>
+      </div>`:`<div class="next-label">Nächster Besuch</div><div class="next-empty">Noch kein Termin angekündigt</div>`;
+
+    document.querySelector('#horizon-rail').innerHTML=Array.from({length:21},(_,i)=>{
+      const d=new Date(today); d.setDate(today.getDate()+i-7);
       const id=dateLocal(d);
       const dayVisits=visits.filter(v=>v.date===id);
-      const today=id===dateLocal(new Date());
-      const names=dayVisits.slice(0,3).map(v=>esc(v.display_name||'Besuch')).join(', ');
-      return `<button class="calendar-day ${today?'today':''} ${id===selected?'selected':''}" data-date="${id}" aria-label="${esc(naturalDate(id))}${names?', '+names:''}">
-        <span class="day-number">${day}</span>
-        ${dayVisits.length?`<span class="visit-dots">${dayVisits.slice(0,3).map(()=>'<i></i>').join('')}<em>${dayVisits.length}</em></span>`:''}
-        ${names?`<span class="calendar-name">${names}</span>`:''}
+      const isToday=id===dateLocal(today);
+      const relative=i===7?'Heute':i===8?'Morgen':i===6?'Gestern':d.toLocaleDateString('de-DE',{weekday:'short'});
+      const morning=dayVisits.some(v=>v.template==='Morgens'||v.start_time<'12:00');
+      const afternoon=dayVisits.some(v=>v.template==='Nachmittags'||(v.start_time>= '12:00'&&v.start_time<'18:00'));
+      const evening=dayVisits.some(v=>v.template==='Abends'||v.start_time>= '18:00');
+      return `<button class="horizon-day ${isToday?'today':''} ${id===selected?'selected':''}" data-date="${id}" aria-label="${esc(naturalDate(id))}">
+        <span class="horizon-relative">${esc(relative)}</span>
+        <strong>${d.getDate()}</strong>
+        <span class="day-phases">${morning?'<i class="phase morning" title="Vormittag">◐</i>':''}${afternoon?'<i class="phase afternoon" title="Nachmittag">●</i>':''}${evening?'<i class="phase evening" title="Abend">◒</i>':''}</span>
+        ${dayVisits.length?`<span class="horizon-count">${dayVisits.length}</span>`:''}
       </button>`;
     }).join('');
-    document.querySelectorAll('.calendar-day[data-date]').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.horizon-day').forEach(b=>b.onclick=()=>{
       selected=b.dataset.date;
-      const d=new Date(`${selected}T12:00:00`);
-      if(d.getMonth()!==monthDate.getMonth())monthDate=new Date(d.getFullYear(),d.getMonth(),1);
-      renderCalendar();renderDay();
+      renderHorizon();renderDay();
     });
+    requestAnimationFrame(()=>document.querySelector('.horizon-day.today')?.scrollIntoView({inline:'center',block:'nearest'}));
   }
   function renderDay(){
     document.querySelector('#day-title').innerHTML=`<h2>${esc(naturalDate(selected))}</h2>`;
@@ -202,9 +200,7 @@ function renderVisitor(c,visits){
       <span class="time-chip">${esc(v.start_time)}–${esc(v.end_time)}</span></article>`).join(''):
       `<article class="empty-day"><span aria-hidden="true">☀</span><strong>Heute ist noch frei</strong><p>Du kannst einen Besuch ankündigen.</p></article>`;
   }
-  document.querySelector('#prev-month').onclick=()=>{monthDate=new Date(monthDate.getFullYear(),monthDate.getMonth()-1,1);renderCalendar();};
-  document.querySelector('#next-month').onclick=()=>{monthDate=new Date(monthDate.getFullYear(),monthDate.getMonth()+1,1);renderCalendar();};
-  renderCalendar();renderDay();
+  renderHorizon();renderDay();
   document.querySelector('#fab').onclick=()=>visitorFlow(c);
 }
 function visitorFlow(c){
@@ -212,11 +208,14 @@ function visitorFlow(c){
   const today=new Date();
   back.hidden=false;
   function dayStep(){
-    app.innerHTML=`<section><h1>${t.day}</h1><div class="chip-row">${[0,1,2,3,4,5,6].map(n=>{
-      const d=new Date(today.getTime()+n*86400000), id=dateLocal(d);
-      return `<button class="chip" data-date="${id}">${esc(naturalDate(id))}</button>`;
-    }).join('')}</div></section>`;
+    app.innerHTML=`<section><h1>${t.day}</h1><div class="chip-row">${Array.from({length:21},(_,n)=>{
+      const d=new Date(today); d.setDate(today.getDate()+n-7); const id=dateLocal(d);
+      return `<button class="chip ${n===7?'selected':''}" data-date="${id}">${esc(naturalDate(id))}</button>`;
+    }).join('')}</div>
+      <label><p>Anderes Datum</p><input class="field" id="other-date" type="date"></label>
+    </section>`;
     app.querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>{visitState.date=b.dataset.date;timeStep();});
+    document.querySelector('#other-date').onchange=()=>{if(document.querySelector('#other-date').value){visitState.date=document.querySelector('#other-date').value;timeStep();}};
   }
   function timeStep(){
     app.innerHTML=`<section><h1>${t.time}</h1><div class="chip-row">${['Morgens','Nachmittags','Abends'].map(x=>`<button class="chip" data-template="${x}">${esc(t[x==='Morgens'?'morning':x==='Nachmittags'?'afternoon':'evening'])}</button>`).join('')}</div><label><p>${t.note}</p><input class="field" id="note" maxlength="280"></label><button class="button wide step" id="save">${t.done}</button></section>`;
@@ -248,8 +247,18 @@ async function holgerPage(slug){
 function renderHolger(c,visits){
   const sorted=[...visits].sort((a,b)=>(`${a.date}${a.start_time}`).localeCompare(`${b.date}${b.start_time}`)).filter(v=>v.date>=dateLocal(new Date()));
   const next=sorted[0];
-  app.innerHTML=`<section class="hero-card card"><p>${t.next}</p><h1>${next?esc(next.display_name):t.noVisit}</h1><p>${next?`${esc(naturalDate(next.date))}, ${esc(next.template?.toLowerCase()||`${next.start_time}–${next.end_time}`)}`:''}</p></section>
-    <h2>${t.following||'Folgende Tage'}</h2><div>${sorted.slice(1).map(v=>`<div class="visit-row"><div class="avatar">${esc(v.display_name?.[0]||'B')}</div><div><strong>${esc(v.display_name)}</strong><br>${esc(naturalDate(v.date))}, ${esc(v.start_time)}–${esc(v.end_time)}</div></div>`).join('')||`<p>${t.noVisits}</p>`}</div>`;
+  app.innerHTML=`<section class="hero-card card"><p>${t.next}</p><h1>${next?esc(next.display_name):t.noVisit}</h1><p>${next?`${esc(naturalDate(next.date))} · ${esc(next.template?.toLowerCase()||`${next.start_time}–${next.end_time}`)}`:''}</p></section>
+    <section class="holger-horizon" aria-label="Besuche der nächsten zwei Wochen">
+      ${Array.from({length:14},(_,i)=>{
+        const d=new Date();d.setDate(d.getDate()+i);const id=dateLocal(d);
+        const dayVisits=visits.filter(v=>v.date===id);
+        if(!dayVisits.length)return '';
+        return `<article class="holger-day ${i===0?'today':''}">
+          <div class="holger-relative">${i===0?'Heute':i===1?'Morgen':esc(d.toLocaleDateString('de-DE',{weekday:'long'}))}</div>
+          ${dayVisits.map(v=>`<div class="holger-visit"><div class="avatar">${esc(v.display_name?.[0]||'B')}</div><strong>${esc(v.display_name)}</strong><span>${esc(v.template||`${v.start_time}–${v.end_time}`)}</span></div>`).join('')}
+        </article>`;
+      }).join('')||`<p>${t.noVisits}</p>`}
+    </section>`;
   localStorage.setItem(`sokn-visits-${c.id}`,JSON.stringify(visits));
 }
 
