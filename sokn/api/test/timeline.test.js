@@ -66,6 +66,18 @@ test('sun position follows a schematic day and switches to the moon at night', (
   assert.ok(at(15).y>at(12).y);
 });
 
+test('sun arc shows accessible day-phase symbols at their time ranges', () => {
+  const html=renderTodaySun([],now);
+  const phases=[...html.matchAll(/class="sun-phase (\w+)" style="--phase-x:([^"]+)" role="img" title="([^"]+)" aria-label="([^"]+)"/g)];
+  assert.deepEqual(phases.map(([,kind,position,title,label])=>[kind,position,title,label]),[
+    ['night','12.5%','Nacht, 00 bis 06 Uhr','Nacht, 00 bis 06 Uhr'],
+    ['morning','33.33333333333333%','Morgen, 06 bis 10 Uhr','Morgen, 06 bis 10 Uhr'],
+    ['day','56.25%','Tag, 10 bis 17 Uhr','Tag, 10 bis 17 Uhr'],
+    ['evening','79.16666666666666%','Abend, 17 bis 21 Uhr','Abend, 17 bis 21 Uhr'],
+    ['night','93.75%','Nacht, 21 bis 24 Uhr','Nacht, 21 bis 24 Uhr']
+  ]);
+});
+
 test('sun view aligns all visits with the day, including overlapping and night visits', () => {
   const visits=[
     {...visit('<Sam>','11:30','12:30'),id:'crossing'},

@@ -77,14 +77,23 @@ function marker(now) {
   </div>`;
 }
 
+const dayPhases = [
+  {kind:'night', name:'Nacht', start:0, end:6, icon:'<path d="M19.5 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 19.5 15.5Z"/><path d="M17 3v4m-2-2h4"/>'},
+  {kind:'morning', name:'Morgen', start:6, end:10, icon:'<path d="M2 19h20M5 16a7 7 0 0 1 14 0M12 9V2m-3 3 3-3 3 3M4 10l2 2m14-2-2 2"/>'},
+  {kind:'day', name:'Tag', start:10, end:17, icon:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/>'},
+  {kind:'evening', name:'Abend', start:17, end:21, icon:'<path d="M2 19h20M5 16a7 7 0 0 1 14 0M12 2v7m-3-3 3 3 3-3M4 10l2 2m14-2-2 2"/>'},
+  {kind:'night', name:'Nacht', start:21, end:24, icon:'<path d="M19.5 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 19.5 15.5Z"/><path d="M17 3v4m-2-2h4"/>'}
+];
+function phaseLabel(phase) {
+  return `${phase.name}, ${String(phase.start).padStart(2,'0')} bis ${String(phase.end).padStart(2,'0')} Uhr`;
+}
+function phaseIcon(phase) {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${phase.icon}</svg>`;
+}
 function renderScale() {
   return `<div class="timeline-scale">
         <div class="timeline-phases" aria-label="Tageszeiten von Mitternacht bis Mitternacht">
-          <span class="timeline-phase night" role="img" title="Nacht, 00 bis 06 Uhr" aria-label="Nacht, 00 bis 06 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 19.5 15.5Z"/><path d="M17 3v4m-2-2h4"/></svg><small>Nacht</small></span>
-          <span class="timeline-phase morning" role="img" title="Morgen, 06 bis 10 Uhr" aria-label="Morgen, 06 bis 10 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 19h20M5 16a7 7 0 0 1 14 0M12 9V2m-3 3 3-3 3 3M4 10l2 2m14-2-2 2"/></svg><small>Morgen</small></span>
-          <span class="timeline-phase day" role="img" title="Tag, 10 bis 17 Uhr" aria-label="Tag, 10 bis 17 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><small>Tag</small></span>
-          <span class="timeline-phase evening" role="img" title="Abend, 17 bis 21 Uhr" aria-label="Abend, 17 bis 21 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 19h20M5 16a7 7 0 0 1 14 0M12 2v7m-3-3 3 3 3-3M4 10l2 2m14-2-2 2"/></svg><small>Abend</small></span>
-          <span class="timeline-phase night" role="img" title="Nacht, 21 bis 24 Uhr" aria-label="Nacht, 21 bis 24 Uhr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 19.5 15.5Z"/><path d="M17 3v4m-2-2h4"/></svg><small>Nacht</small></span>
+          ${dayPhases.map(phase=>`<span class="timeline-phase ${phase.kind}" role="img" title="${phaseLabel(phase)}" aria-label="${phaseLabel(phase)}">${phaseIcon(phase)}<small>${phase.name}</small></span>`).join('')}
         </div>
         <div class="timeline-axis" aria-hidden="true">
           <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
@@ -141,15 +150,20 @@ export function renderTodaySun(visits, now = new Date()) {
   return `<section class="sun-view" aria-label="Schematischer Tagesbogen" style="--sun-x:${position.x}%">
     <div class="sun-plot">
       <div class="sun-scene" style="--sun-y:${position.y}%">
-        <svg class="sun-landscape" viewBox="0 0 800 240" preserveAspectRatio="none" aria-hidden="true">
-          <path class="sun-night" d="M0 0H200V240H0z M600 0H800V240H600z"/>
-          <path class="sun-path" d="M200 180 Q400 -80 600 180"/>
-          <path class="sun-ground" d="M0 180H800"/>
-        </svg>
-        <span class="sun-position" aria-hidden="true">
-          <svg class="sun-icon" ${position.day ? '' : 'hidden'} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4.2 4.2l2.2 2.2m11.2 11.2 2.2 2.2m0-15.6-2.2 2.2M6.4 17.6l-2.2 2.2"/></svg>
-          <svg class="moon-icon" ${position.day ? 'hidden' : ''} viewBox="0 0 24 24"><path d="M19.5 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 19.5 15.5Z"/></svg>
-        </span>
+        <div class="sun-sky">
+          <svg class="sun-landscape" viewBox="0 0 800 240" preserveAspectRatio="none" aria-hidden="true">
+            <path class="sun-night" d="M0 0H200V240H0z M600 0H800V240H600z"/>
+            <path class="sun-path" d="M200 180 Q400 -80 600 180"/>
+            <path class="sun-ground" d="M0 180H800"/>
+          </svg>
+          <span class="sun-position" aria-hidden="true">
+            <svg class="sun-icon" ${position.day ? '' : 'hidden'} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4.2 4.2l2.2 2.2m11.2 11.2 2.2 2.2m0-15.6-2.2 2.2M6.4 17.6l-2.2 2.2"/></svg>
+            <svg class="moon-icon" ${position.day ? 'hidden' : ''} viewBox="0 0 24 24"><path d="M19.5 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 19.5 15.5Z"/></svg>
+          </span>
+        </div>
+        <div class="sun-phases" aria-label="Tageszeiten">
+          ${dayPhases.map(phase=>`<span class="sun-phase ${phase.kind}" style="--phase-x:${(phase.start + phase.end) / 48 * 100}%" role="img" title="${phaseLabel(phase)}" aria-label="${phaseLabel(phase)}">${phaseIcon(phase)}</span>`).join('')}
+        </div>
       </div>
       <div class="sun-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
       <p class="sun-current">Jetzt ${time}</p>
