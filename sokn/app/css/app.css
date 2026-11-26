@@ -198,18 +198,6 @@ body {
 }
 
 .day-timeline { margin-top:12px; }
-.day-distance { margin:18px 0 20px;max-width:560px; }
-.distance-title { margin-bottom:8px; }
-.distance-title strong { font-size:20px; }
-.distance-cells { display:flex;flex-wrap:wrap;gap:6px; }
-.distance-cell { width:40px;height:40px;flex:none;border:2px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container); }
-.distance-cell.is-selected { border-color:var(--md-sys-color-primary);background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary); }
-.distance-pagination { margin-top:12px; }
-.distance-page-count { display:block;margin-bottom:8px;font-size:15px;font-weight:700; }
-.distance-actions { display:flex;flex-wrap:wrap;gap:8px; }
-.distance-page-button { min-height:64px;padding:8px 14px;border:0;border-radius:16px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);font-weight:800; }
-.distance-page-button:disabled { opacity:.45;cursor:not-allowed; }
-.distance-page-button:focus-visible { outline:3px solid var(--md-sys-color-primary);outline-offset:3px; }
 .timeline-chart { --person-width:200px;position:relative;margin-top:12px; }
 .timeline-scale { margin-left:var(--person-width); }
 .timeline-chart.has-now .timeline-scale { padding-top:42px; }
@@ -264,7 +252,6 @@ body {
 .visit-dialog h2 { margin:0;font-size:clamp(30px,5vw,36px); }
 .visit-dialog-date { margin:8px 0 0;font-size:clamp(20px,3vw,26px);font-weight:800; }
 .visit-dialog-time { margin:4px 0 12px;font-size:clamp(20px,3vw,24px);font-weight:700; }
-.visit-dialog .day-distance { margin:12px 0; }
 .visit-dialog .people-list { gap:20px; }
 .visit-dialog .person { max-width:180px; }
 .visit-dialog .person-photo { width:clamp(112px,18vw,128px);height:clamp(112px,18vw,128px); }

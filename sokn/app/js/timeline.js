@@ -56,41 +56,6 @@ function marker(now) {
   </div>`;
 }
 
-export function renderDayDistance(date, now = new Date(), page = 0) {
-  const today=localDate(now);
-  const target=Date.parse(`${date}T00:00:00Z`);
-  const current=Date.parse(`${today}T00:00:00Z`);
-  if (!Number.isFinite(target)) return '';
-  const days=Math.round((target-current)/86400000);
-  const count=Math.abs(days);
-  const relative=days===0?'Heute':days===1?'Morgen':days===-1?'Gestern':days>0?`In ${count} Tagen`:`Vor ${count} Tagen`;
-  const pageSize=28, total=count, lastPage=Math.max(0,Math.floor((total-1)/pageSize));
-  const currentPage=Math.max(0,Math.min(Number.isInteger(page)?page:0,lastPage));
-  const first=currentPage*pageSize, end=Math.min(first+pageSize,total);
-  const start=days>0 ? current+86400000 : target;
-  const cells=Array.from({length:end-first},(_,i)=>{
-    const day=new Date(start+(first+i)*86400000);
-    const iso=day.toISOString().slice(0,10);
-    const isSelected=iso===date;
-    const fullDate=day.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
-    const description=[isSelected?'Ausgewählter Tag':'',fullDate].filter(Boolean).join(', ');
-    return `<span class="distance-cell${isSelected?' is-selected':''}" data-day="${iso}" role="listitem" aria-label="${escapeHtml(description)}" title="${escapeHtml(description)}"></span>`;
-  }).join('');
-  const nav=lastPage ? `<div class="distance-pagination">
-    <span class="distance-page-count">Tage ${first+1}–${end} von ${total}</span>
-    <div class="distance-actions">
-      <button type="button" class="distance-page-button" data-distance-page="${currentPage-1}" ${currentPage===0?'disabled':''}>← Zurück</button>
-      <button type="button" class="distance-page-button" data-distance-page="${currentPage+1}" ${currentPage===lastPage?'disabled':''}>Weiter →</button>
-      <button type="button" class="distance-page-button" data-distance-page="${currentPage===0?lastPage:0}">${currentPage===0?'Zum Ende ⇥':'Zum Anfang ⇤'}</button>
-    </div>
-  </div>` : '';
-  return `<div class="day-distance" data-distance-date="${escapeHtml(date)}" data-distance-current="${currentPage}" aria-label="${escapeHtml(relative)}">
-    <div class="distance-title"><strong>${escapeHtml(relative)}</strong></div>
-    ${count ? `<div class="distance-cells" role="list" aria-label="Ein Kästchen pro Tag">${cells}</div>` : ''}
-    ${nav}
-  </div>`;
-}
-
 export function renderTimeline(date, visits, now = new Date(), {detail = false} = {}) {
   const isToday = date === localDate(now);
   const rows = [...visits].sort((a, b) => a.start_time.localeCompare(b.start_time)).map(visit => {
@@ -108,7 +73,6 @@ export function renderTimeline(date, visits, now = new Date(), {detail = false} 
     </button>`;
   }).join('');
   return `<section class="day-timeline" aria-label="Uhrzeiten">
-    ${detail ? '' : renderDayDistance(date,now)}
     <div class="timeline-chart ${isToday ? 'has-now' : ''}">
       <div class="timeline-scale">
         <div class="timeline-phases" aria-label="Tageszeiten von Mitternacht bis Mitternacht">

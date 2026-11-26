@@ -1,5 +1,5 @@
 import {de as t} from './i18n.js';
-import {isValidTimeRange, nextVisit, renderDayDistance, renderPeople, renderTimeline, visitPeople} from './timeline.js';
+import {isValidTimeRange, nextVisit, renderPeople, renderTimeline, visitPeople} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
@@ -24,7 +24,6 @@ function showVisitDetails(visit){
     <h2 id="visit-dialog-title" tabindex="-1" autofocus>Wer kommt?</h2>
     <p class="visit-dialog-date">${esc(naturalDate(visit.date))} · ${esc(date)}</p>
     <p class="visit-dialog-time">${esc(visit.start_time)}–${esc(visit.end_time)} Uhr${visit.template ? ` · ${esc(visit.template)}` : ''}</p>
-    ${renderDayDistance(visit.date,now)}
     ${renderPeople(visitPeople(visit))}
     ${renderTimeline(visit.date,[visit],now,{detail:true})}
     ${visit.note ? `<p class="visit-dialog-note">${esc(visit.note)}</p>` : ''}
@@ -40,23 +39,6 @@ app.addEventListener('click',event=>{
   if(!button || !app.contains(button)) return;
   const visit=visibleVisits.find(item=>item.id===button.dataset.visitId);
   if(visit) showVisitDetails(visit);
-});
-document.addEventListener('click',event=>{
-  const button=event.target.closest('[data-distance-page]');
-  if(!button || button.disabled) return;
-  const distance=button.closest('.day-distance');
-  if(!distance) return;
-  const page=Number(button.dataset.distancePage);
-  const previous=Number(distance.dataset.distanceCurrent);
-  const template=document.createElement('template');
-  template.innerHTML=renderDayDistance(distance.dataset.distanceDate,new Date(),page);
-  const replacement=template.content.firstElementChild;
-  distance.replaceWith(replacement);
-  const direction=page>=previous ? 1 : -1;
-  const focus=replacement.querySelector(`[data-distance-page="${page+direction}"]:not(:disabled)`)
-    || replacement.querySelector(`[data-distance-page="${page-direction}"]:not(:disabled)`)
-    || replacement.querySelector('[data-distance-page]:not(:disabled)');
-  focus?.focus();
 });
 async function preparePhoto(file){
   if(!file || !file.type.startsWith('image/') || file.size>10*1024*1024) throw new Error('Bitte ein Bild mit höchstens 10 MB auswählen.');
