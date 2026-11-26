@@ -117,52 +117,46 @@ export function renderTimeline(date, visits, now = new Date(), {detail = false} 
   </section>`;
 }
 
-export function renderTodayClock(visits, now = new Date()) {
-  const today = localDate(now);
-  const currentMinute = now.getHours() * 60 + now.getMinutes();
+export function sunPosition(now) {
+  const minute = now.getHours() * 60 + now.getMinutes();
+  const day = minute >= 360 && minute < 1080;
+  const progress = (minute - 360) / 720;
+  return {x:minute / DAY_MINUTES * 100, y:day ? (180 - 520 * progress * (1 - progress)) / 240 * 100 : 60, day};
+}
+
+export function renderTodaySun(visits, now = new Date()) {
+  const position = sunPosition(now);
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const rows = [...visits].filter(visit => {
     const start = minutes(visit.start_time), end = minutes(visit.end_time);
-    return visit.date === today && start !== null && end !== null && end > start;
-  }).sort((a,b) => a.start_time.localeCompare(b.start_time));
-  const hours = Array.from({length:12}, (_, index) => {
-    const angle = index * Math.PI / 6;
-    return `<text x="${140 + 70 * Math.sin(angle)}" y="${140 - 70 * Math.cos(angle)}">${index || 12}</text>`;
+    return visit.date === localDate(now) && start !== null && end !== null && end > start;
+  }).sort((a,b) => a.start_time.localeCompare(b.start_time)).map(visit => {
+    const start = minutes(visit.start_time), end = minutes(visit.end_time);
+    const names = visitPeople(visit).map(person=>person.display_name || 'Besuch').join(', ');
+    return `<button type="button" class="sun-visit" data-visit-id="${escapeHtml(visit.id || '')}" aria-label="Besuch anzeigen: ${escapeHtml(names)}, ${escapeHtml(visit.start_time)} bis ${escapeHtml(visit.end_time)}">
+      <span class="timeline-person">${renderPeople(visitPeople(visit))}<span class="timeline-time">${escapeHtml(visit.start_time)}–${escapeHtml(visit.end_time)} <span aria-hidden="true">ⓘ</span></span></span>
+      <span class="sun-track" aria-hidden="true"><span class="timeline-interval" style="--start:${start / DAY_MINUTES * 100}%;--duration:${(end - start) / DAY_MINUTES * 100}%"></span></span>
+    </button>`;
   }).join('');
-  return `<div class="today-clocks">${[0,1].map(period => {
-    const start = period * 720, end = start + 720;
-    const segments = rows.filter(visit => minutes(visit.start_time) < end && minutes(visit.end_time) > start);
-    const width = Math.min(9, 32 / Math.max(segments.length, 1));
-    const arcs = segments.map((visit,index) => {
-      const from = Math.max(minutes(visit.start_time),start) - start;
-      const duration = Math.min(minutes(visit.end_time),end) - start - from;
-      return `<circle class="clock-arc clock-color-${index % 6}" cx="140" cy="140" r="${119 - width * (index + .5)}" pathLength="720" stroke-width="${width * .8}" stroke-dasharray="${duration} ${720-duration}" stroke-dashoffset="${-from}" transform="rotate(-90 140 140)"/>`;
-    }).join('');
-    const current = Math.floor(currentMinute / 720) === period;
-    return `<section class="clock-period" data-clock-period="${period}">
-      <h3>${period === 0 ? '00–12 Uhr' : '12–24 Uhr'}</h3>
-      <p class="clock-current" ${current ? '' : 'hidden'}>Jetzt ${time}</p>
-      <svg class="clock-face" viewBox="0 0 280 280" aria-hidden="true">
-        <circle class="clock-background" cx="140" cy="140" r="127"/>
-        ${arcs}
-        <circle class="clock-inner" cx="140" cy="140" r="88"/>
-        <g class="clock-hours">${hours}</g>
-        <g class="clock-hands" ${current ? '' : 'hidden'}>
-          <line class="clock-hour-hand" x1="140" y1="140" x2="140" y2="100" transform="rotate(${(currentMinute % 720) / 2} 140 140)"/>
-          <line class="clock-minute-hand" x1="140" y1="140" x2="140" y2="83" transform="rotate(${now.getMinutes() * 6} 140 140)"/>
-          <circle cx="140" cy="140" r="5"/>
-        </g>
-      </svg>
-      <div class="clock-visits">${segments.map((visit,index) => {
-        const names = visitPeople(visit).map(person=>person.display_name || 'Besuch').join(', ');
-        return `<button type="button" class="clock-visit" data-visit-id="${escapeHtml(visit.id || '')}" aria-label="Besuch anzeigen: ${escapeHtml(names)}, ${escapeHtml(visit.start_time)} bis ${escapeHtml(visit.end_time)}">
-          <span class="clock-key clock-color-${index % 6}" aria-hidden="true"></span>
-          ${renderPeople(visitPeople(visit))}
-          <span class="clock-visit-time">${escapeHtml(visit.start_time)}–${escapeHtml(visit.end_time)} <span aria-hidden="true">ⓘ</span></span>
-        </button>`;
-      }).join('')}</div>
-    </section>`;
-  }).join('')}</div>`;
+  return `<section class="sun-view" aria-label="Schematischer Tagesbogen">
+    <div class="sun-plot">
+      <div class="sun-scene" style="--sun-x:${position.x}%;--sun-y:${position.y}%">
+        <svg class="sun-landscape" viewBox="0 0 800 240" preserveAspectRatio="none" aria-hidden="true">
+          <path class="sun-night" d="M0 0H200V240H0z M600 0H800V240H600z"/>
+          <path class="sun-path" d="M200 180 Q400 -80 600 180"/>
+          <path class="sun-ground" d="M0 180H800"/>
+        </svg>
+        <span class="sun-position" aria-hidden="true">
+          <svg class="sun-icon" ${position.day ? '' : 'hidden'} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4.2 4.2l2.2 2.2m11.2 11.2 2.2 2.2m0-15.6-2.2 2.2M6.4 17.6l-2.2 2.2"/></svg>
+          <svg class="moon-icon" ${position.day ? 'hidden' : ''} viewBox="0 0 24 24"><path d="M19.5 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 19.5 15.5Z"/></svg>
+        </span>
+      </div>
+      <div class="sun-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+      <p class="sun-current">Jetzt ${time}</p>
+      <p class="sun-caption">Schematisch, keine echten Sonnenzeiten</p>
+    </div>
+    <div class="sun-visits">${rows}</div>
+  </section>`;
 }
 
 export function renderWeekOverview(startDate, visits, now = new Date(), selectedDate = null) {

@@ -1,5 +1,5 @@
 import {de as t} from './i18n.js';
-import {horizonDates, isValidTimeRange, upcomingVisits, renderPeople, renderUpcomingAvatars, renderTimeline, renderTodayClock, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
+import {horizonDates, isValidTimeRange, upcomingVisits, renderPeople, renderUpcomingAvatars, renderTimeline, renderTodaySun, renderWeekOverview, shiftDate, sunPosition, visitPeople} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
@@ -167,8 +167,8 @@ function setupViewSwitch(onChange){
 function renderToday(visits){
   return `<div class="today-switch" role="group" aria-label="Ansicht für heute">
     <button type="button" data-today-view="timeline" aria-pressed="${todayView==='timeline'}"><span aria-hidden="true">☰</span> Tagesverlauf</button>
-    <button type="button" data-today-view="clock" aria-pressed="${todayView==='clock'}"><span aria-hidden="true">◷</span> Uhr</button>
-  </div>${todayView==='clock' ? renderTodayClock(visits) : renderTimeline(dateLocal(new Date()),visits)}`;
+    <button type="button" data-today-view="sun" aria-pressed="${todayView==='sun'}"><span aria-hidden="true">☀</span> Tagesbogen</button>
+  </div>${todayView==='sun' ? renderTodaySun(visits) : renderTimeline(dateLocal(new Date()),visits)}`;
 }
 function setupTodaySwitch(container,render){
   container.addEventListener('click',event=>{
@@ -737,15 +737,14 @@ setInterval(()=>{
     return;
   }
   if(document.querySelector('#next-visit')) refreshNextVisit();
-  document.querySelectorAll('.clock-period').forEach(period=>{
-    const current=Number(period.dataset.clockPeriod)===Math.floor(now.getHours()/12);
-    const label=period.querySelector('.clock-current');
-    const hands=period.querySelector('.clock-hands');
-    label.hidden=!current;
-    hands.toggleAttribute('hidden',!current);
-    label.textContent=`Jetzt ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    hands.querySelector('.clock-hour-hand').setAttribute('transform',`rotate(${((now.getHours()%12)*60+now.getMinutes())/2} 140 140)`);
-    hands.querySelector('.clock-minute-hand').setAttribute('transform',`rotate(${now.getMinutes()*6} 140 140)`);
+  document.querySelectorAll('.sun-view').forEach(view=>{
+    const position=sunPosition(now);
+    const scene=view.querySelector('.sun-scene');
+    scene.style.setProperty('--sun-x',`${position.x}%`);
+    scene.style.setProperty('--sun-y',`${position.y}%`);
+    scene.querySelector('.sun-icon').toggleAttribute('hidden',!position.day);
+    scene.querySelector('.moon-icon').toggleAttribute('hidden',position.day);
+    view.querySelector('.sun-current').textContent=`Jetzt ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   });
   document.querySelectorAll('.day-timeline').forEach(timeline=>{
     const label=timeline.querySelector('.timeline-now-label');

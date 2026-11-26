@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { horizonDates, isValidTimeRange, localDate, nextVisit, upcomingVisits, renderUpcomingAvatars, renderTimeline, renderTodayClock, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
+import { horizonDates, isValidTimeRange, localDate, nextVisit, upcomingVisits, renderUpcomingAvatars, renderTimeline, renderTodaySun, renderWeekOverview, shiftDate, sunPosition } from '../../app/js/timeline.js';
 
 const now = new Date(2030, 0, 2, 12, 0);
 const visit = (name, start, end, date = localDate(now)) => ({
@@ -55,49 +55,41 @@ test('detail timeline shows the selected visit and the current time without anot
   assert.doesNotMatch(renderTimeline('2030-01-03',[row],now,{detail:true}),/timeline-now/);
 });
 
-test('today clock splits visits at noon and shows the current hands on the correct dial', () => {
-  const crossing={...visit('<Sam>','11:30','12:30'),id:'crossing'};
-  const morning={...visit('Alex','09:00','10:00'),id:'morning'};
-  const afternoon={...visit('Mia','14:00','16:00'),id:'afternoon'};
-  const tomorrow={...visit('Later','09:00','10:00','2030-01-03'),id:'tomorrow'};
-  const html=renderTodayClock([crossing,morning,afternoon,tomorrow],now);
-  const [first,second]=html.split('<section class="clock-period" data-clock-period="1">');
-  assert.match(first,/00–12 Uhr/);
-  assert.match(second,/12–24 Uhr/);
-  assert.match(first,/stroke-dasharray="30 690" stroke-dashoffset="-690"/);
-  assert.match(second,/stroke-dasharray="30 690" stroke-dashoffset="0"/);
-  assert.match(second,/stroke-dasharray="120 600" stroke-dashoffset="-120"/);
-  assert.match(first,/data-visit-id="crossing"/);
-  assert.match(second,/data-visit-id="crossing"/);
-  assert.match(first,/&lt;Sam&gt;/);
-  assert.doesNotMatch(html,/data-visit-id="tomorrow"/);
-  assert.match(first,/class="clock-hands" hidden/);
-  assert.match(second,/class="clock-hands" >[\s\S]*rotate\(0 140 140\)/);
-  assert.match(second,/Jetzt 12:00/);
+test('sun position follows a schematic day and switches to the moon at night', () => {
+  const at=(hour,minute=0)=>sunPosition(new Date(2030,0,2,hour,minute));
+  assert.deepEqual(at(0),{x:0,y:60,day:false});
+  assert.deepEqual(at(6),{x:25,y:75,day:true});
+  assert.deepEqual(at(12),{x:50,y:50/240*100,day:true});
+  assert.deepEqual(at(18),{x:75,y:60,day:false});
+  assert.ok(at(23,59).x>99);
+  assert.ok(at(9).y<at(6).y);
+  assert.ok(at(15).y>at(12).y);
 });
 
-test('empty clock still shows both halves of today and the current time', () => {
-  const html=renderTodayClock([],new Date(2030,0,2,23,59));
-  assert.equal((html.match(/class="clock-period"/g)||[]).length,2);
-  assert.match(html,/Jetzt 23:59/);
-  assert.match(html,/rotate\(359\.5 140 140\)/);
-  assert.doesNotMatch(html,/clock-arc|Kein Besuch/);
-});
-
-test('clock keeps overlapping visits on separate rings and switches at noon', () => {
-  const rows=[
-    {...visit('Alex','09:00','11:00'),id:'one'},
-    {...visit('Sam','09:00','11:00'),id:'two'},
+test('sun view aligns all visits with the day, including overlapping and night visits', () => {
+  const visits=[
+    {...visit('<Sam>','11:30','12:30'),id:'crossing'},
+    {...visit('Alex','11:30','13:30'),id:'overlap'},
+    {...visit('Night','22:00','23:30'),id:'night'},
+    {...visit('Later','09:00','10:00','2030-01-03'),id:'tomorrow'},
     {...visit('Invalid','09:00','09:00'),id:'invalid'}
   ];
-  const html=renderTodayClock(rows,new Date(2030,0,2,11,59));
-  const [first,second]=html.split('<section class="clock-period" data-clock-period="1">');
-  const radii=[...first.matchAll(/class="clock-arc[^>]* r="([^"]+)"/g)].map(match=>match[1]);
-  assert.equal(radii.length,2);
-  assert.notEqual(radii[0],radii[1]);
-  assert.match(first,/Jetzt 11:59/);
-  assert.match(second,/class="clock-hands" hidden/);
-  assert.doesNotMatch(html,/data-visit-id="invalid"/);
+  const html=renderTodaySun(visits,now);
+  assert.match(html,/--sun-x:50%;--sun-y:20\.833333333333336%/);
+  assert.match(html,/class="sun-icon"\s+viewBox=/);
+  assert.match(html,/class="moon-icon" hidden/);
+  assert.match(html,/Jetzt 12:00/);
+  assert.match(html,/Schematisch, keine echten Sonnenzeiten/);
+  assert.match(html,/data-visit-id="crossing"[\s\S]*?--start:47\.91666666666667%;--duration:4\.166666666666666%/);
+  assert.match(html,/data-visit-id="overlap"/);
+  assert.match(html,/data-visit-id="night"[\s\S]*?--start:91\.66666666666666%;--duration:6\.25%/);
+  assert.match(html,/&lt;Sam&gt;/);
+  assert.doesNotMatch(html,/data-visit-id="tomorrow"|data-visit-id="invalid"/);
+  const empty=renderTodaySun([],new Date(2030,0,2,23,59));
+  assert.match(empty,/class="sun-icon" hidden/);
+  assert.match(empty,/class="moon-icon"\s+viewBox=/);
+  assert.match(empty,/Jetzt 23:59/);
+  assert.doesNotMatch(empty,/Kein Besuch|class="sun-visit"/);
 });
 
 test('seven-day overview repeats the scale and positions visits on their correct days', () => {
