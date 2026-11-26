@@ -31,6 +31,22 @@ export function nextVisit(visits, now = new Date()) {
   }).sort((a, b) => `${a.date}${a.start_time}`.localeCompare(`${b.date}${b.start_time}`))[0];
 }
 
+export function visitPeople(visit) {
+  return visit.people?.length ? visit.people : [{display_name:visit.display_name || 'Besuch',avatar_url:visit.avatar_url}];
+}
+
+export function renderPeople(people) {
+  return `<div class="people-list">${people.map(person=>{
+    const name=escapeHtml(person.display_name || 'Besuch');
+    const initial=escapeHtml((person.display_name || 'B').trim().charAt(0) || 'B');
+    const url=person.avatar_url || '';
+    const image=/^(https?:\/\/|\/api\/(circles|profile)\/)/i.test(url)
+      ? `<img class="person-photo" src="${escapeHtml(url)}" alt="" referrerpolicy="no-referrer">`
+      : `<span class="person-photo person-initial" aria-hidden="true">${initial}</span>`;
+    return `<span class="person">${image}<span class="person-name">${name}</span></span>`;
+  }).join('')}</div>`;
+}
+
 function marker(now) {
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const position = (now.getHours() * 60 + now.getMinutes()) / DAY_MINUTES * 100;
@@ -46,15 +62,10 @@ export function renderTimeline(date, visits, now = new Date()) {
     const start = minutes(visit.start_time);
     const end = minutes(visit.end_time);
     if (start === null || end === null || end < start) return '';
-    const name = escapeHtml(visit.display_name || 'Besuch');
-    const initial = escapeHtml((visit.display_name || 'B').trim().charAt(0) || 'B');
-    const image = /^https?:\/\//i.test(visit.avatar_url || '')
-      ? `<img class="timeline-avatar" src="${escapeHtml(visit.avatar_url)}" alt="" referrerpolicy="no-referrer">`
-      : `<span class="timeline-avatar" aria-hidden="true">${initial}</span>`;
     const left = start / DAY_MINUTES * 100;
     const width = (end - start) / DAY_MINUTES * 100;
     return `<article class="timeline-visit">
-      <div class="timeline-person">${image}<div><strong>${name}</strong><span>${escapeHtml(visit.start_time)}–${escapeHtml(visit.end_time)}</span></div></div>
+      <div class="timeline-person">${renderPeople(visitPeople(visit))}<span class="timeline-time">${escapeHtml(visit.start_time)}–${escapeHtml(visit.end_time)}</span></div>
       <div class="timeline-track" aria-hidden="true"><span class="timeline-interval" style="--start:${left}%;--duration:${width}%"></span></div>
     </article>`;
   }).join('');

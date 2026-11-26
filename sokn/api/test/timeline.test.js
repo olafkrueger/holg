@@ -49,6 +49,21 @@ test('next visit skips visits already ended and escapes visitor names', () => {
   assert.doesNotMatch(renderTimeline(localDate(now), visits, now), /<Sam>/);
 });
 
+test('shows every participant and a safe photo in the timeline', () => {
+  const row=visit('Franzi','09:00','10:00');
+  row.people=[
+    {display_name:'Franzi',avatar_url:'/api/circles/c/photos/users/u'},
+    {display_name:'<Tim>',avatar_url:'/api/circles/c/photos/companions/p'},
+    {display_name:'Toni',avatar_url:'javascript:alert(1)'}
+  ];
+  const html=renderTimeline(localDate(now),[row],now);
+  assert.match(html,/src="\/api\/circles\/c\/photos\/users\/u"/);
+  assert.match(html,/src="\/api\/circles\/c\/photos\/companions\/p"/);
+  assert.match(html,/&lt;Tim&gt;/);
+  assert.match(html,/>Toni</);
+  assert.doesNotMatch(html,/javascript:/);
+});
+
 test('custom times require half-hour steps and an end after the start on the same day', () => {
   assert.equal(isValidTimeRange('09:30', '11:00'), true);
   assert.equal(isValidTimeRange('23:00', '23:30'), true);

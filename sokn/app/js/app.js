@@ -1,5 +1,5 @@
 import {de as t} from './i18n.js';
-import {isValidTimeRange, nextVisit, renderTimeline} from './timeline.js';
+import {isValidTimeRange, nextVisit, renderPeople, renderTimeline, visitPeople} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
@@ -12,6 +12,28 @@ async function api(url,options={}) {
   return r.json();
 }
 function esc(s=''){const e=document.createElement('span');e.textContent=s;return e.innerHTML;}
+async function preparePhoto(file){
+  if(!file || !file.type.startsWith('image/') || file.size>10*1024*1024) throw new Error('Bitte ein Bild mit höchstens 10 MB auswählen.');
+  const url=URL.createObjectURL(file);
+  try{
+    const image=new Image();
+    image.src=url;
+    await image.decode();
+    const scale=Math.min(1,512/Math.max(image.naturalWidth,image.naturalHeight));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+    canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+    const context=canvas.getContext('2d');
+    if(!context) throw new Error('Das Bild konnte nicht verarbeitet werden.');
+    context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);
+    context.drawImage(image,0,0,canvas.width,canvas.height);
+    for(let quality=.85;quality>=.35;quality-=.1){
+      const photo=canvas.toDataURL('image/jpeg',quality);
+      if(photo.length<=349500) return photo;
+    }
+    throw new Error('Das Bild ist zu groß. Bitte ein anderes Bild wählen.');
+  }finally{URL.revokeObjectURL(url);}
+}
 function dateLocal(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function naturalDate(date){
   const d=new Date(`${date}T12:00:00`), today=new Date(), a=dateLocal(today), b=dateLocal(new Date(today.getTime()+86400000));
@@ -158,7 +180,7 @@ async function circlePage(slug,selectedDate){
 function renderVisitor(c,visits,selectedDate){
   let selected=selectedDate||dateLocal(new Date());
   app.innerHTML=`<section class="visitor-shell">
-    <div class="circle-heading"><div><span class="eyebrow">Besucherkalender</span><h1>${esc(c.name)}</h1></div><div class="avatar">${esc(c.name?.charAt(0)||'H')}</div></div>
+    <div class="circle-heading"><div><span class="eyebrow">Besucherkalender</span><h1>${esc(c.name)}</h1></div><button class="button profile-button" id="profile">Mein Profil</button></div>
     <section class="horizon-card" aria-label="Eine Woche zurück bis zwei Wochen voraus">
       <div id="next-visit" class="next-visit"></div>
       <div class="horizon-rail" id="horizon-rail"></div>
@@ -173,8 +195,7 @@ function renderVisitor(c,visits,selectedDate){
     document.querySelector('#next-visit').innerHTML=future?`
       <div class="next-label">Nächster Besuch</div>
       <div class="next-content">
-        <div class="next-avatar">${esc(future.display_name?.[0]||'B')}</div>
-        <div><strong>${esc(future.display_name||'Besuch')}</strong><span>${esc(naturalDate(future.date))} · ${esc(future.template||`${future.start_time}–${future.end_time}`)}</span></div>
+        <div>${renderPeople(visitPeople(future))}<span class="next-time">${esc(naturalDate(future.date))} · ${esc(future.template||`${future.start_time}–${future.end_time}`)}</span></div>
       </div>`:`<div class="next-label">Nächster Besuch</div><div class="next-empty">Kein bevorstehender Besuch</div>`;
   }
   refreshNextVisit=updateNextVisit;
@@ -222,8 +243,53 @@ function renderVisitor(c,visits,selectedDate){
   }
   renderHorizon();renderDay();
   document.querySelector('#fab').onclick=()=>visitorFlow(c,selected);
+  document.querySelector('#profile').onclick=()=>profilePage(c,selected);
 }
-function visitorFlow(c,selectedDate){
+async function profilePage(c,selectedDate){
+  let me;
+  try{me=await api('/api/me');}catch(e){alert(`Profil konnte nicht geladen werden: ${e.message}`);return;}
+  back.hidden=false;
+  app.innerHTML=`<section class="booking-card"><h1>Mein Profil</h1>
+    <p>Dieses Foto sehen die Menschen in deinen Kalendern.</p>
+    ${renderPeople([{display_name:me.name,avatar_url:me.avatar}])}
+    <label class="booking-field" for="profile-name">Name
+      <input class="field" id="profile-name" maxlength="80" value="${esc(me.name)}" autocomplete="name">
+    </label>
+    <button class="button wide" id="save-name">Name speichern</button>
+    <label class="booking-field" for="profile-photo">Foto auswählen
+      <input class="field" id="profile-photo" type="file" accept="image/*">
+    </label>
+    <button class="button wide" id="save-photo">Foto speichern</button>
+    <button class="button wide photo-remove" id="remove-photo">Hochgeladenes Foto entfernen</button>
+    <p id="profile-message" role="status"></p>
+  </section>`;
+  back.onclick=()=>{back.hidden=true;circlePage(location.pathname.split('/')[2],selectedDate);};
+  const message=document.querySelector('#profile-message');
+  document.querySelector('#save-name').onclick=async()=>{
+    const name=document.querySelector('#profile-name').value.trim();
+    if(!name){message.textContent='Bitte einen Namen eingeben.';return;}
+    try{await api('/api/profile',{method:'PUT',body:JSON.stringify({name})});profilePage(c,selectedDate);}
+    catch(e){message.textContent=`Name konnte nicht gespeichert werden: ${e.message}`;}
+  };
+  document.querySelector('#save-photo').onclick=async()=>{
+    const file=document.querySelector('#profile-photo').files[0];
+    if(!file){message.textContent='Bitte zuerst ein Foto auswählen.';return;}
+    try{
+      const photo=await preparePhoto(file);
+      await api('/api/profile/photo',{method:'PUT',body:JSON.stringify({photo})});
+      message.textContent='Foto gespeichert.';
+      profilePage(c,selectedDate);
+    }catch(e){message.textContent=`Foto konnte nicht gespeichert werden: ${e.message}`;}
+  };
+  document.querySelector('#remove-photo').onclick=async()=>{
+    try{await api('/api/profile/photo',{method:'DELETE'});profilePage(c,selectedDate);}
+    catch(e){message.textContent=`Foto konnte nicht entfernt werden: ${e.message}`;}
+  };
+}
+async function visitorFlow(c,selectedDate){
+  let people;
+  try{people=await api(`/api/circles/${c.id}/people`);}
+  catch(e){alert(`Personen konnten nicht geladen werden: ${e.message}`);return;}
   visitState={date:selectedDate,time:'',template:'',note:''};
   let customTime=false;
   back.hidden=false;
@@ -245,6 +311,23 @@ function visitorFlow(c,selectedDate){
         </label>
         <p class="booking-error" id="time-error" role="status" hidden></p>
       </div>
+      <fieldset class="participant-picker">
+        <legend>Wer kommt mit?</legend>
+        <p>Du bist automatisch dabei. Wähle weitere Personen aus.</p>
+        <div id="participant-list" class="participant-list"></div>
+        <button class="button add-person" type="button" id="add-person">＋ Person ohne Konto hinzufügen</button>
+        <div id="companion-form" class="companion-form" hidden>
+          <label for="companion-name">Name
+            <input class="field" id="companion-name" maxlength="80" autocomplete="off">
+          </label>
+          <label for="companion-photo">Foto (optional)
+            <input class="field" id="companion-photo" type="file" accept="image/*">
+          </label>
+          <label class="remove-companion-photo" id="remove-companion-label" hidden><input type="checkbox" id="remove-companion-photo"> Foto entfernen</label>
+          <button class="button" type="button" id="save-companion">Person speichern</button>
+          <p id="companion-error" role="status"></p>
+        </div>
+      </fieldset>
       <label class="booking-field" for="other-date">Datum ändern (optional)
         <input class="field" id="other-date" type="date" value="${esc(visitState.date)}" required>
       </label>
@@ -260,6 +343,66 @@ function visitorFlow(c,selectedDate){
     const customFields=document.querySelector('#custom-time-fields');
     const timeError=document.querySelector('#time-error');
     const saveButton=document.querySelector('#save');
+    const selectedPeople=new Set();
+    let editingCompanion=null;
+    function openCompanionForm(person=null){
+      editingCompanion=person;
+      document.querySelector('#companion-name').value=person?.display_name || '';
+      document.querySelector('#companion-photo').value='';
+      document.querySelector('#remove-companion-photo').checked=false;
+      document.querySelector('#remove-companion-label').hidden=!person?.avatar_url;
+      document.querySelector('#companion-error').textContent='';
+      document.querySelector('#companion-form').hidden=false;
+      document.querySelector('#companion-name').focus();
+    }
+    function renderParticipants(){
+      const options=[
+        ...people.members.filter(p=>p.id!==people.me).map(p=>({...p,type:'user'})),
+        ...people.companions.map(p=>({...p,type:'companion'}))
+      ];
+      document.querySelector('#participant-list').innerHTML=options.map(p=>{
+        const key=`${p.type}:${p.id}`;
+        return `<div class="participant-wrap"><label class="participant-option"><input type="checkbox" data-person-type="${esc(p.type)}" data-person-id="${esc(p.id)}" ${selectedPeople.has(key)?'checked':''}>${renderPeople([p])}</label>${p.type==='companion'?`<button class="edit-person" type="button" data-edit-person="${esc(p.id)}">Bearbeiten</button>`:''}</div>`;
+      }).join('');
+      document.querySelectorAll('[data-person-id]').forEach(input=>input.onchange=()=>{
+        const key=`${input.dataset.personType}:${input.dataset.personId}`;
+        if(input.checked) selectedPeople.add(key); else selectedPeople.delete(key);
+      });
+      document.querySelectorAll('[data-edit-person]').forEach(button=>button.onclick=()=>{
+        openCompanionForm(people.companions.find(p=>p.id===button.dataset.editPerson));
+      });
+    }
+    renderParticipants();
+    document.querySelector('#add-person').onclick=()=>{
+      const form=document.querySelector('#companion-form');
+      if(!form.hidden && !editingCompanion) form.hidden=true;
+      else openCompanionForm();
+    };
+    document.querySelector('#save-companion').onclick=async()=>{
+      const name=document.querySelector('#companion-name').value.trim();
+      const file=document.querySelector('#companion-photo').files[0];
+      const error=document.querySelector('#companion-error');
+      if(!name){error.textContent='Bitte einen Namen eingeben.';return;}
+      const button=document.querySelector('#save-companion');
+      button.disabled=true;
+      try{
+        const photo=file ? await preparePhoto(file) : null;
+        const url=`/api/circles/${c.id}/companions${editingCompanion?`/${editingCompanion.id}`:''}`;
+        const person=await api(url,{method:editingCompanion?'PUT':'POST',body:JSON.stringify({name,photo,remove_photo:document.querySelector('#remove-companion-photo').checked})});
+        if(editingCompanion){
+          const index=people.companions.findIndex(p=>p.id===editingCompanion.id);
+          people.companions[index]=person;
+        }else{
+          people.companions.push(person);selectedPeople.add(`companion:${person.id}`);
+        }
+        renderParticipants();
+        document.querySelector('#companion-form').hidden=true;
+        document.querySelector('#companion-name').value='';
+        document.querySelector('#companion-photo').value='';
+        error.textContent='';
+      }catch(e){error.textContent=`Person konnte nicht hinzugefügt werden: ${e.message}`;}
+      finally{button.disabled=false;}
+    };
     function updateCustomTime(){
       const valid=isValidTimeRange(startInput.value,endInput.value);
       const startIsValid=startInput.validity.valid;
@@ -318,7 +461,8 @@ function visitorFlow(c,selectedDate){
       visitState.date=dateInput.value;
       visitState.note=document.querySelector('#note').value;
       const [start,end]=customTime ? [startInput.value,endInput.value] : templateTimes(visitState.template);
-      try{await api(`/api/circles/${c.id}/visits`,{method:'POST',body:JSON.stringify({date:visitState.date,start_time:start,end_time:end,template:visitState.template,note:visitState.note})});back.hidden=true;circlePage(location.pathname.split('/')[2],visitState.date);}
+      const participants=[...selectedPeople].map(key=>{const [type,id]=key.split(':');return {type,id};});
+      try{await api(`/api/circles/${c.id}/visits`,{method:'POST',body:JSON.stringify({date:visitState.date,start_time:start,end_time:end,template:visitState.template,note:visitState.note,participants})});back.hidden=true;circlePage(location.pathname.split('/')[2],visitState.date);}
       catch(e){alert(e.message);}
     };
   }
@@ -338,7 +482,7 @@ async function holgerPage(slug){
 function renderHolger(c,visits){
   const sorted=[...visits].sort((a,b)=>(`${a.date}${a.start_time}`).localeCompare(`${b.date}${b.start_time}`)).filter(v=>v.date>=dateLocal(new Date()));
   const next=nextVisit(sorted);
-  app.innerHTML=`<section class="hero-card card"><p>${t.next}</p><h1>${next?esc(next.display_name):t.noVisit}</h1><p class="hero-time">${next?`${esc(naturalDate(next.date))} · ${esc(next.template?.toLowerCase()||`${next.start_time}–${next.end_time}`)}`:''}</p></section>
+  app.innerHTML=`<section class="hero-card card"><p>${t.next}</p><div id="holger-next-people">${next?renderPeople(visitPeople(next)):`<h1>${t.noVisit}</h1>`}</div><p class="hero-time">${next?`${esc(naturalDate(next.date))} · ${esc(next.template?.toLowerCase()||`${next.start_time}–${next.end_time}`)}`:''}</p></section>
     <section class="holger-day today"><h2>Heute</h2>${renderTimeline(dateLocal(new Date()),visits.filter(v=>v.date===dateLocal(new Date())))}</section>
     <section class="holger-horizon" aria-label="Besuche der nächsten zwei Wochen">
       ${Array.from({length:14},(_,i)=>{
@@ -353,7 +497,7 @@ function renderHolger(c,visits){
     </section>`;
   refreshNextVisit=()=>{
     const upcoming=nextVisit(visits);
-    document.querySelector('.hero-card h1').textContent=upcoming?.display_name || t.noVisit;
+    document.querySelector('#holger-next-people').innerHTML=upcoming ? renderPeople(visitPeople(upcoming)) : `<h1>${t.noVisit}</h1>`;
     document.querySelector('.hero-time').textContent=upcoming
       ? `${naturalDate(upcoming.date)} · ${upcoming.template?.toLowerCase()||`${upcoming.start_time}–${upcoming.end_time}`}` : '';
   };

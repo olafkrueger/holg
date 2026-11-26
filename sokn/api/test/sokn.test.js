@@ -69,3 +69,60 @@ test('visitor cannot delete another visitor’s visit or admin visit', async()=>
   assert.equal(forbidden.statusCode,403);
   await app.close();
 });
+
+test('profiles and visit participants remain private to the calendar and work on the tablet', async()=>{
+  const {app,db}=await setup();
+  const login=async name=>{
+    const r=await app.inject({method:'POST',url:'/auth/dev/login',payload:{name,subject:name}});
+    return {cookie:`sokn_session=${r.cookies[0].value}`,id:r.json().user.id};
+  };
+  const franzi=await login('Franzi'), olaf=await login('Olaf'), outsider=await login('Outsider');
+  const create=await app.inject({method:'POST',url:'/api/circles',headers:{cookie:franzi.cookie},payload:{name:'Family'}});
+  const circle=create.json(), slug=circle.visitor_url.split('/').pop();
+  await app.inject({method:'POST',url:`/api/circles/by-slug/${slug}/join`,headers:{cookie:olaf.cookie}});
+  const url=`/api/circles/${circle.id}`;
+  const jpeg='data:image/jpeg;base64,/9j/2Q==';
+  assert.equal((await app.inject({method:'PUT',url:'/api/profile',headers:{cookie:olaf.cookie},payload:{name:'Marc'}})).statusCode,200);
+  assert.equal((await app.inject({method:'PUT',url:'/api/profile/photo',headers:{cookie:franzi.cookie},payload:{photo:jpeg}})).statusCode,200);
+  assert.equal((await app.inject({method:'PUT',url:'/api/profile/photo',headers:{cookie:franzi.cookie},payload:{photo:'data:image/svg+xml;base64,PHN2Zz4='}})).statusCode,400);
+  const tim=await app.inject({method:'POST',url:`${url}/companions`,headers:{cookie:franzi.cookie},payload:{name:'Tim',photo:jpeg}});
+  const toni=await app.inject({method:'POST',url:`${url}/companions`,headers:{cookie:franzi.cookie},payload:{name:'Toni'}});
+  assert.equal(tim.statusCode,200);
+  const people=(await app.inject({method:'GET',url:`${url}/people`,headers:{cookie:franzi.cookie}})).json();
+  assert.deepEqual(people.members.map(p=>p.display_name).sort(),['Franzi','Marc']);
+  assert.deepEqual(people.companions.map(p=>p.display_name),['Tim','Toni']);
+  assert.deepEqual((await app.inject({method:'GET',url:`${url}/people`,headers:{cookie:olaf.cookie}})).json().companions,[]);
+  assert.equal((await app.inject({method:'GET',url:`${url}/people`,headers:{cookie:outsider.cookie}})).statusCode,404);
+  const timUrl=`${url}/companions/${tim.json().id}`;
+  assert.equal((await app.inject({method:'PUT',url:timUrl,headers:{cookie:olaf.cookie},payload:{name:'Tim'}})).statusCode,404);
+  const changed=await app.inject({method:'PUT',url:timUrl,headers:{cookie:franzi.cookie},payload:{name:'Tim',remove_photo:true}});
+  assert.equal(changed.json().avatar_url,null);
+  assert.equal((await app.inject({method:'PUT',url:timUrl,headers:{cookie:franzi.cookie},payload:{name:'Tim',photo:jpeg}})).statusCode,200);
+  const payload={date:'2030-01-02',start_time:'10:00',end_time:'12:00',participants:[
+    {type:'user',id:olaf.id},{type:'companion',id:tim.json().id},{type:'companion',id:toni.json().id}
+  ]};
+  const created=await app.inject({method:'POST',url:`${url}/visits`,headers:{cookie:franzi.cookie},payload});
+  assert.equal(created.statusCode,200);
+  assert.deepEqual(created.json().people.map(p=>p.display_name),['Franzi','Marc','Tim','Toni']);
+  const visits=await app.inject({method:'GET',url:`${url}/visits`,headers:{cookie:olaf.cookie}});
+  assert.deepEqual(visits.json().visits[0].people.map(p=>p.display_name),['Franzi','Marc','Tim','Toni']);
+  const photoUrl=created.json().people.find(p=>p.display_name==='Tim').avatar_url;
+  assert.equal((await app.inject({method:'GET',url:photoUrl,headers:{cookie:olaf.cookie}})).headers['content-type'],'image/jpeg');
+  assert.equal((await app.inject({method:'GET',url:photoUrl,headers:{cookie:outsider.cookie}})).statusCode,404);
+  assert.equal((await app.inject({method:'GET',url:`${url}/photos/users/${franzi.id}`})).statusCode,404);
+  assert.equal((await app.inject({method:'POST',url:`${url}/visits`,headers:{cookie:olaf.cookie},payload:{...payload,participants:[{type:'companion',id:tim.json().id}]}})).statusCode,400);
+  assert.equal((await app.inject({method:'POST',url:`${url}/visits`,headers:{cookie:franzi.cookie},payload:{...payload,participants:[{type:'user',id:outsider.id}]}})).statusCode,400);
+  assert.equal((await app.inject({method:'POST',url:`${url}/visits`,headers:{cookie:franzi.cookie},payload:{...payload,participants:[{type:'user',id:olaf.id},{type:'user',id:olaf.id}]}})).statusCode,400);
+  const pairing=await app.inject({method:'POST',url:`${url}/pairings`,headers:{cookie:franzi.cookie}});
+  const paired=await app.inject({method:'POST',url:`/api${pairing.json().pairing_url}`});
+  const device=`sokn_device=${paired.cookies[0].value}`;
+  assert.equal((await app.inject({method:'GET',url:photoUrl,headers:{cookie:device}})).statusCode,200);
+  assert.equal((await app.inject({method:'GET',url:`${url}/visits`,headers:{cookie:device}})).json().visits[0].people.length,4);
+  const updated=await app.inject({method:'PUT',url:`${url}/visits/${created.json().id}`,headers:{cookie:franzi.cookie},payload:{participants:[{type:'companion',id:toni.json().id}]}});
+  assert.deepEqual(updated.json().people.map(p=>p.display_name),['Franzi','Toni']);
+  assert.equal((await app.inject({method:'GET',url:photoUrl,headers:{cookie:device}})).statusCode,404);
+  assert.equal((await app.inject({method:'DELETE',url:'/api/profile/photo',headers:{cookie:franzi.cookie}})).statusCode,200);
+  assert.equal((await app.inject({method:'GET',url:`${url}/photos/users/${franzi.id}`,headers:{cookie:olaf.cookie}})).statusCode,404);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM visits').get().n,1);
+  await app.close();
+});

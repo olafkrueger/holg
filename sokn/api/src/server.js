@@ -50,12 +50,85 @@ export async function buildServer(overrides = {}) {
     if (!m || m.status !== 'active') { reply.code(404).send({error:'not_found'}); return null; }
     return { user, membership:m };
   }
+  function canViewCircle(request, circleId) {
+    const device = deviceAuth(request);
+    if (device?.circle_id === circleId) return true;
+    const user = getAuth(request);
+    return !!user && member(circleId,user.id)?.status === 'active';
+  }
+  function readPhoto(value) {
+    if (typeof value !== 'string' || !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(value)) return null;
+    const data=Buffer.from(value.slice('data:image/jpeg;base64,'.length),'base64');
+    if (data.length < 4 || data.length > 256*1024 || data[0]!==0xff || data[1]!==0xd8 || data[data.length-2]!==0xff || data[data.length-1]!==0xd9) return null;
+    return data;
+  }
+  function photoResponse(reply, photo) {
+    if (!photo) return reply.code(404).send({error:'not_found'});
+    return reply.header('Cache-Control','private, no-store').header('X-Content-Type-Options','nosniff').type('image/jpeg').send(photo);
+  }
+  function visitWithPeople(visit, circleId) {
+    const uploaded=db.prepare('SELECT 1 FROM user_photos WHERE user_id=?').get(visit.user_id);
+    const people=[{id:visit.user_id,display_name:visit.display_name,avatar_url:uploaded
+      ? `/api/circles/${circleId}/photos/users/${visit.user_id}` : visit.avatar_url}];
+    const others=db.prepare(`SELECT u.id,u.display_name,u.avatar_url,up.user_id has_photo,NULL companion_id,p.position
+      FROM visit_participants p JOIN users u ON u.id=p.user_id LEFT JOIN user_photos up ON up.user_id=u.id
+      WHERE p.visit_id=?
+      UNION ALL
+      SELECT c.id,c.display_name,NULL,c.photo IS NOT NULL,c.id,p.position
+      FROM visit_participants p JOIN companions c ON c.id=p.companion_id WHERE p.visit_id=? ORDER BY position`).all(visit.id,visit.id);
+    for (const person of others) people.push({
+      id:person.id, display_name:person.display_name,
+      avatar_url:person.has_photo ? `/api/circles/${circleId}/photos/${person.companion_id?'companions':'users'}/${person.id}` : person.avatar_url
+    });
+    return {...visit,people};
+  }
+  function validateParticipants(circleId, ownerId, participants) {
+    if (!Array.isArray(participants) || participants.length > 20) return false;
+    const seen=new Set();
+    for (const p of participants) {
+      if (!p || typeof p.id!=='string' || !['user','companion'].includes(p.type)) return false;
+      const key=`${p.type}:${p.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      if (p.type==='user') {
+        if (p.id===ownerId || member(circleId,p.id)?.status!=='active') return false;
+      } else if (!db.prepare('SELECT 1 FROM companions WHERE id=? AND circle_id=? AND owner_id=?').get(p.id,circleId,ownerId)) return false;
+    }
+    return true;
+  }
+  function saveParticipants(visitId, participants) {
+    const insert=db.prepare('INSERT INTO visit_participants(visit_id,user_id,companion_id,position) VALUES(?,?,?,?)');
+    for (const [position,p] of participants.entries()) insert.run(visitId,p.type==='user'?p.id:null,p.type==='companion'?p.id:null,position);
+  }
 
   app.decorate('db', db);
   app.get('/api/health', async () => ({ok:true}));
   app.get('/api/me', async (request) => {
     const user = getAuth(request);
-    return user ? {id:user.id, name:user.display_name, avatar:user.avatar_url} : {id:null};
+    return user ? {id:user.id, name:user.display_name, avatar:db.prepare('SELECT 1 FROM user_photos WHERE user_id=?').get(user.id) ? '/api/profile/photo' : user.avatar_url} : {id:null};
+  });
+  app.put('/api/profile', async (request,reply)=>{
+    const user=getAuth(request); if(!user) return reply.code(401).send({error:'login_required'});
+    const name=typeof request.body?.name==='string' ? request.body.name.trim() : '';
+    if(!name || name.length>80) return reply.code(400).send({error:'invalid_name'});
+    db.prepare('UPDATE users SET display_name=?,name_custom=1 WHERE id=?').run(name,user.id);
+    return {ok:true,name};
+  });
+  app.put('/api/profile/photo', async (request,reply)=>{
+    const user=getAuth(request); if(!user) return reply.code(401).send({error:'login_required'});
+    const photo=readPhoto(request.body?.photo);
+    if(!photo) return reply.code(400).send({error:'invalid_photo'});
+    db.prepare('INSERT OR REPLACE INTO user_photos(user_id,photo) VALUES(?,?)').run(user.id,photo);
+    return {ok:true};
+  });
+  app.get('/api/profile/photo', async (request,reply)=>{
+    const user=getAuth(request); if(!user) return reply.code(401).send({error:'login_required'});
+    return photoResponse(reply,db.prepare('SELECT photo FROM user_photos WHERE user_id=?').get(user.id)?.photo);
+  });
+  app.delete('/api/profile/photo', async (request,reply)=>{
+    const user=getAuth(request); if(!user) return reply.code(401).send({error:'login_required'});
+    db.prepare('DELETE FROM user_photos WHERE user_id=?').run(user.id);
+    return {ok:true};
   });
 
   app.get('/auth/providers', async () => ({
@@ -194,7 +267,7 @@ export async function buildServer(overrides = {}) {
           .run(id,provider,subject,name,claims.picture||null,now());
         user=db.prepare('SELECT * FROM users WHERE id=?').get(id);
       }else{
-        db.prepare('UPDATE users SET display_name=?,avatar_url=? WHERE id=?').run(name,claims.picture||user.avatar_url,user.id);
+        db.prepare('UPDATE users SET display_name=?,avatar_url=? WHERE id=?').run(user.name_custom ? user.display_name : name,claims.picture||user.avatar_url,user.id);
       }
       setSession(reply,user.id);
       return reply.redirect(oauth.next_path);
@@ -284,16 +357,69 @@ export async function buildServer(overrides = {}) {
     return {circle:{id:device.circle_id,name:device.circle_name},holger:true};
   });
 
+  app.get('/api/circles/:circleId/people', async(request,reply)=>{
+    const circleId=request.params.circleId;
+    const auth=requireMember(request,reply,circleId); if(!auth)return;
+    const members=db.prepare(`SELECT u.id,u.display_name,u.avatar_url,up.user_id has_photo
+      FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN user_photos up ON up.user_id=u.id
+      WHERE m.circle_id=? AND m.status='active' ORDER BY u.display_name`).all(circleId);
+    const companions=db.prepare('SELECT id,display_name,photo IS NOT NULL has_photo FROM companions WHERE circle_id=? AND owner_id=? ORDER BY display_name').all(circleId,auth.user.id);
+    return {
+      me:auth.user.id,
+      members:members.map(p=>({id:p.id,display_name:p.display_name,avatar_url:p.has_photo ? `/api/circles/${circleId}/photos/users/${p.id}` : p.avatar_url})),
+      companions:companions.map(p=>({id:p.id,display_name:p.display_name,avatar_url:p.has_photo ? `/api/circles/${circleId}/photos/companions/${p.id}` : null}))
+    };
+  });
+  app.post('/api/circles/:circleId/companions', async(request,reply)=>{
+    const circleId=request.params.circleId;
+    const auth=requireMember(request,reply,circleId); if(!auth)return;
+    const name=typeof request.body?.name==='string' ? request.body.name.trim() : '';
+    if(!name || name.length>80) return reply.code(400).send({error:'invalid_name'});
+    const photo=request.body?.photo ? readPhoto(request.body.photo) : null;
+    if(request.body?.photo && !photo) return reply.code(400).send({error:'invalid_photo'});
+    const id=rid(16);
+    db.prepare('INSERT INTO companions(id,circle_id,owner_id,display_name,photo) VALUES(?,?,?,?,?)').run(id,circleId,auth.user.id,name,photo);
+    return {id,display_name:name,avatar_url:photo ? `/api/circles/${circleId}/photos/companions/${id}` : null};
+  });
+  app.put('/api/circles/:circleId/companions/:companionId', async(request,reply)=>{
+    const {circleId,companionId}=request.params;
+    const auth=requireMember(request,reply,circleId); if(!auth)return;
+    const companion=db.prepare('SELECT * FROM companions WHERE id=? AND circle_id=? AND owner_id=?').get(companionId,circleId,auth.user.id);
+    if(!companion) return reply.code(404).send({error:'not_found'});
+    const name=typeof request.body?.name==='string' ? request.body.name.trim() : '';
+    if(!name || name.length>80) return reply.code(400).send({error:'invalid_name'});
+    const photo=request.body?.photo ? readPhoto(request.body.photo) : request.body?.remove_photo ? null : companion.photo;
+    if(request.body?.photo && !photo) return reply.code(400).send({error:'invalid_photo'});
+    db.prepare('UPDATE companions SET display_name=?,photo=? WHERE id=? AND circle_id=? AND owner_id=?').run(name,photo,companionId,circleId,auth.user.id);
+    return {id:companionId,display_name:name,avatar_url:photo ? `/api/circles/${circleId}/photos/companions/${companionId}` : null};
+  });
+  app.get('/api/circles/:circleId/photos/users/:userId', async(request,reply)=>{
+    const {circleId,userId}=request.params;
+    if(!canViewCircle(request,circleId)) return reply.code(404).send({error:'not_found'});
+    const visible=db.prepare(`SELECT 1 FROM memberships WHERE circle_id=? AND user_id=? AND status='active'
+      UNION ALL SELECT 1 FROM visits v LEFT JOIN visit_participants p ON p.visit_id=v.id
+      WHERE v.circle_id=? AND (v.user_id=? OR p.user_id=?) LIMIT 1`).get(circleId,userId,circleId,userId,userId);
+    if(!visible) return reply.code(404).send({error:'not_found'});
+    return photoResponse(reply,db.prepare('SELECT photo FROM user_photos WHERE user_id=?').get(userId)?.photo);
+  });
+  app.get('/api/circles/:circleId/photos/companions/:companionId', async(request,reply)=>{
+    const {circleId,companionId}=request.params;
+    if(!canViewCircle(request,circleId)) return reply.code(404).send({error:'not_found'});
+    const user=getAuth(request);
+    const photo=db.prepare(`SELECT c.photo FROM companions c WHERE c.id=? AND c.circle_id=?
+      AND (c.owner_id=? OR EXISTS (SELECT 1 FROM visit_participants p JOIN visits v ON v.id=p.visit_id WHERE p.companion_id=c.id AND v.circle_id=c.circle_id))`)
+      .get(companionId,circleId,user?.id || '');
+    return photoResponse(reply,photo?.photo);
+  });
+
   app.get('/api/circles/:circleId/visits', async(request,reply)=>{
     const device=deviceAuth(request);
-    if(device?.circle_id===request.params.circleId) {
-      const visits=db.prepare('SELECT v.*,u.display_name,u.avatar_url FROM visits v JOIN users u ON u.id=v.user_id WHERE v.circle_id=? ORDER BY date,start_time').all(request.params.circleId);
-      return {visits};
+    if(device?.circle_id!==request.params.circleId) {
+      const auth=requireMember(request,reply,request.params.circleId);
+      if(!auth) return;
     }
-    const auth=requireMember(request,reply,request.params.circleId);
-    if(!auth) return;
     const visits=db.prepare('SELECT v.*,u.display_name,u.avatar_url FROM visits v JOIN users u ON u.id=v.user_id WHERE v.circle_id=? ORDER BY date,start_time').all(request.params.circleId);
-    return {visits};
+    return {visits:visits.map(v=>visitWithPeople(v,request.params.circleId))};
   });
 
   app.post('/api/circles/:circleId/visits', async(request,reply)=>{
@@ -302,11 +428,16 @@ export async function buildServer(overrides = {}) {
     const start=String(b.start_time||''); const end=String(b.end_time||start);
     if(!date||!/^([01]\d|2[0-3]):[0-5]\d$/.test(start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(end)) return reply.code(400).send({error:'invalid_visit'});
     if(end<start) return reply.code(400).send({error:'invalid_time_range'});
+    const participants=b.participants===undefined ? [] : b.participants;
+    if(!validateParticipants(request.params.circleId,auth.user.id,participants)) return reply.code(400).send({error:'invalid_participants'});
     const id=rid(16);
-    db.prepare('INSERT INTO visits(id,circle_id,user_id,date,start_time,end_time,template,note,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
-      .run(id,request.params.circleId,auth.user.id,date,start,end,b.template?String(b.template).slice(0,20):null,String(b.note||'').slice(0,280),now());
+    db.transaction(()=>{
+      db.prepare('INSERT INTO visits(id,circle_id,user_id,date,start_time,end_time,template,note,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
+        .run(id,request.params.circleId,auth.user.id,date,start,end,b.template?String(b.template).slice(0,20):null,String(b.note||'').slice(0,280),now());
+      saveParticipants(id,participants);
+    })();
     await pushCircle(db,request.params.circleId,{title:'Neuer Besuch',body:'Jemand hat einen Besuch angekündigt.'});
-    return db.prepare('SELECT v.*,u.display_name,u.avatar_url FROM visits v JOIN users u ON u.id=v.user_id WHERE v.id=?').get(id);
+    return visitWithPeople(db.prepare('SELECT v.*,u.display_name,u.avatar_url FROM visits v JOIN users u ON u.id=v.user_id WHERE v.id=? AND v.circle_id=?').get(id,request.params.circleId),request.params.circleId);
   });
 
   app.put('/api/circles/:circleId/visits/:visitId', async(request,reply)=>{
@@ -317,10 +448,17 @@ export async function buildServer(overrides = {}) {
     const b=request.body||{}, date=/^\d{4}-\d{2}-\d{2}$/.test(String(b.date||visit.date))?(b.date||visit.date):visit.date;
     const start=String(b.start_time||visit.start_time), end=String(b.end_time||visit.end_time);
     if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(end)||end<start) return reply.code(400).send({error:'invalid_visit'});
-    db.prepare('UPDATE visits SET date=?,start_time=?,end_time=?,template=?,note=? WHERE id=? AND circle_id=?')
-      .run(date,start,end,b.template===undefined?visit.template:String(b.template).slice(0,20),b.note===undefined?visit.note:String(b.note).slice(0,280),request.params.visitId,request.params.circleId);
+    if(b.participants!==undefined && !validateParticipants(request.params.circleId,visit.user_id,b.participants)) return reply.code(400).send({error:'invalid_participants'});
+    db.transaction(()=>{
+      db.prepare('UPDATE visits SET date=?,start_time=?,end_time=?,template=?,note=? WHERE id=? AND circle_id=?')
+        .run(date,start,end,b.template===undefined?visit.template:String(b.template).slice(0,20),b.note===undefined?visit.note:String(b.note).slice(0,280),request.params.visitId,request.params.circleId);
+      if(b.participants!==undefined) {
+        db.prepare('DELETE FROM visit_participants WHERE visit_id=?').run(visit.id);
+        saveParticipants(visit.id,b.participants);
+      }
+    })();
     await pushCircle(db,request.params.circleId,{title:'Besuch geändert',body:'Ein Besuch wurde aktualisiert.'});
-    return db.prepare('SELECT v.*,u.display_name,u.avatar_url FROM visits v JOIN users u ON u.id=v.user_id WHERE v.id=?').get(request.params.visitId);
+    return visitWithPeople(db.prepare('SELECT v.*,u.display_name,u.avatar_url FROM visits v JOIN users u ON u.id=v.user_id WHERE v.id=? AND v.circle_id=?').get(request.params.visitId,request.params.circleId),request.params.circleId);
   });
 
   app.delete('/api/circles/:circleId/visits/:visitId', async(request,reply)=>{

@@ -47,3 +47,5 @@ The container serves both the API and `sokn/app/` from one Fastify process. Moun
 - Visitors create, edit and delete only their own visits.
 - Pairing creates a long-lived, read-only tablet session.
 - Every visit and member query is scoped to the current circle.
+- Members can upload or remove a profile photo. Photos are resized in the browser and stored in SQLite; only active members of a shared circle and its paired tablet can access them.
+- When booking, a member can add other active members or create and edit reusable named companions (for example children), with optional photos. Companions belong to their creator and their calendar; they do not need an account. Existing visits without additional participants continue to show their creator.
