@@ -320,7 +320,7 @@ setInterval(()=>{
     if (!label) return;
     const time=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     label.textContent=`Jetzt ${time}`;
-    timeline.querySelectorAll('.timeline-now').forEach(line=>line.style.setProperty('--position',`${(now.getHours()*60+now.getMinutes())/1440*100}%`));
+    timeline.querySelector('.timeline-overlay').style.setProperty('--position',`${(now.getHours()*60+now.getMinutes())/1440*100}%`);
   });
 }, 60_000);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

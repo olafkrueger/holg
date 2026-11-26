@@ -14,7 +14,9 @@ test('places visit intervals and current time on the same 24-hour scale', () => 
   ], now);
   assert.match(html, /--start:25%;--duration:25%/);
   assert.match(html, /--start:37\.5%;--duration:25%/);
-  assert.equal((html.match(/--position:50%/g) || []).length, 2);
+  assert.equal((html.match(/--position:50%/g) || []).length, 1);
+  assert.match(html, /class="timeline-now-label">Jetzt 12:00/);
+  assert.equal((html.match(/class="timeline-now"/g) || []).length, 1);
   assert.match(html, /06:00–12:00/);
   assert.match(html, /09:00–15:00/);
 });
@@ -22,6 +24,13 @@ test('places visit intervals and current time on the same 24-hour scale', () => 
 test('shows now on an empty today, but not on another day', () => {
   assert.match(renderTimeline(localDate(now), [], now), /Jetzt 12:00/);
   assert.doesNotMatch(renderTimeline('2030-01-03', [], now), /timeline-now/);
+});
+
+test('places the now marker correctly at the edges of the day', () => {
+  const midnight = new Date(2030, 0, 2, 0, 0);
+  const late = new Date(2030, 0, 2, 23, 59);
+  assert.match(renderTimeline(localDate(midnight), [], midnight), /--position:0%/);
+  assert.match(renderTimeline(localDate(late), [], late), /--position:99\.93055555555556%/);
 });
 
 test('next visit skips visits already ended and escapes visitor names', () => {
