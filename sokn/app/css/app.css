@@ -199,16 +199,11 @@ body {
 
 .day-timeline { margin-top:12px; }
 .day-distance { margin:18px 0 20px;max-width:560px; }
-.distance-title { display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px; }
+.distance-title { margin-bottom:8px; }
 .distance-title strong { font-size:20px; }
-.distance-title span { font-size:14px; }
 .distance-cells { display:flex;flex-wrap:wrap;gap:6px; }
-.distance-cell { width:48px;min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;border:2px solid var(--md-sys-color-outline-variant);border-radius:10px;background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface); }
-.distance-cell strong { font-size:20px;line-height:1.1; }
-.distance-weekday,.distance-cell-label { font-size:11px;font-weight:800;line-height:1.2; }
-.distance-cell.is-today { border-color:#8a3525;background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container); }
+.distance-cell { width:40px;height:40px;flex:none;border:2px solid var(--md-sys-color-outline);border-radius:8px;background:var(--md-sys-color-surface-container); }
 .distance-cell.is-selected { border-color:var(--md-sys-color-primary);background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary); }
-.distance-cell.is-today.is-selected { border:4px solid #8a3525; }
 .distance-pagination { margin-top:12px; }
 .distance-page-count { display:block;margin-bottom:8px;font-size:15px;font-weight:700; }
 .distance-actions { display:flex;flex-wrap:wrap;gap:8px; }

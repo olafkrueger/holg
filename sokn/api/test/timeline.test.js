@@ -38,33 +38,36 @@ test('detail timeline shows the selected visit and the current time without anot
 
 test('shows how far the selected day is from today, including past and distant days', () => {
   const today=renderDayDistance('2030-01-02',now);
-  assert.equal((today.match(/data-day=/g)||[]).length,1);
-  assert.match(today,/is-today is-selected/);
+  assert.equal((today.match(/data-day=/g)||[]).length,0);
+  assert.match(today,/>Heute</);
   const tomorrow=renderDayDistance('2030-01-03',now);
   assert.match(tomorrow,/Morgen/);
-  assert.equal((tomorrow.match(/data-day=/g)||[]).length,2);
-  assert.match(tomorrow,/data-day="2030-01-02"/);
+  assert.equal((tomorrow.match(/data-day=/g)||[]).length,1);
+  assert.doesNotMatch(tomorrow,/data-day="2030-01-02"/);
   assert.match(tomorrow,/data-day="2030-01-03"/);
   const threeDays=renderDayDistance('2030-01-05',now);
   assert.match(threeDays,/In 3 Tagen/);
-  assert.equal((threeDays.match(/data-day=/g)||[]).length,4);
+  assert.equal((threeDays.match(/data-day=/g)||[]).length,3);
+  assert.doesNotMatch(threeDays,/distance-weekday|distance-cell-label/);
   assert.match(renderDayDistance('2029-12-31',now),/Vor 2 Tagen/);
   const distant=renderDayDistance('2030-02-02',now);
   assert.match(distant,/In 31 Tagen/);
   assert.equal((distant.match(/data-day=/g)||[]).length,28);
-  assert.match(distant,/Tage 1–28 von 32/);
-  assert.match(distant,/data-day="2030-01-29"/);
+  assert.match(distant,/Tage 1–28 von 31/);
+  assert.match(distant,/data-day="2030-01-30"/);
   const last=renderDayDistance('2030-02-02',now,1);
-  assert.equal((last.match(/data-day=/g)||[]).length,4);
-  assert.match(last,/data-day="2030-01-30"/);
+  assert.equal((last.match(/data-day=/g)||[]).length,3);
+  assert.match(last,/data-day="2030-01-31"/);
   assert.match(last,/is-selected" data-day="2030-02-02"/);
-  assert.match(last,/Tage 29–32 von 32/);
+  assert.match(last,/Tage 29–31 von 31/);
   assert.doesNotMatch(last,/distance-gap/);
   const leap=renderDayDistance('2028-03-01',new Date(2028,1,28,12));
   assert.match(leap,/data-day="2028-02-29"/);
-  assert.equal((leap.match(/data-day=/g)||[]).length,3);
+  assert.equal((leap.match(/data-day=/g)||[]).length,2);
   const past=renderDayDistance('2029-12-31',now);
-  assert.ok(past.indexOf('data-day="2029-12-31"') < past.indexOf('data-day="2030-01-02"'));
+  assert.match(past,/is-selected" data-day="2029-12-31"/);
+  assert.match(past,/data-day="2030-01-01"/);
+  assert.doesNotMatch(past,/data-day="2030-01-02"/);
 });
 
 test('shows night at both ends of a chronological day', () => {

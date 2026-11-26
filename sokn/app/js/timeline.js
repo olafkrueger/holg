@@ -64,21 +64,17 @@ export function renderDayDistance(date, now = new Date(), page = 0) {
   const days=Math.round((target-current)/86400000);
   const count=Math.abs(days);
   const relative=days===0?'Heute':days===1?'Morgen':days===-1?'Gestern':days>0?`In ${count} Tagen`:`Vor ${count} Tagen`;
-  const pageSize=28, total=count+1, lastPage=Math.floor((total-1)/pageSize);
+  const pageSize=28, total=count, lastPage=Math.max(0,Math.floor((total-1)/pageSize));
   const currentPage=Math.max(0,Math.min(Number.isInteger(page)?page:0,lastPage));
   const first=currentPage*pageSize, end=Math.min(first+pageSize,total);
-  const start=Math.min(current,target);
-  const weekdays=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const start=days>0 ? current+86400000 : target;
   const cells=Array.from({length:end-first},(_,i)=>{
     const day=new Date(start+(first+i)*86400000);
     const iso=day.toISOString().slice(0,10);
-    const isToday=iso===today, isSelected=iso===date;
+    const isSelected=iso===date;
     const fullDate=day.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
-    const description=[isToday?'Heute':'',isSelected?'Ausgewählter Tag':'',fullDate].filter(Boolean).join(', ');
-    return `<span class="distance-cell${isToday?' is-today':''}${isSelected?' is-selected':''}" data-day="${iso}" role="listitem" aria-label="${escapeHtml(description)}" title="${escapeHtml(description)}">
-      <span class="distance-weekday" aria-hidden="true">${weekdays[day.getUTCDay()]}</span><strong aria-hidden="true">${day.getUTCDate()}</strong>
-      <span class="distance-cell-label" aria-hidden="true">${isToday?'Heute':isSelected?'Ziel':'&nbsp;'}</span>
-    </span>`;
+    const description=[isSelected?'Ausgewählter Tag':'',fullDate].filter(Boolean).join(', ');
+    return `<span class="distance-cell${isSelected?' is-selected':''}" data-day="${iso}" role="listitem" aria-label="${escapeHtml(description)}" title="${escapeHtml(description)}"></span>`;
   }).join('');
   const nav=lastPage ? `<div class="distance-pagination">
     <span class="distance-page-count">Tage ${first+1}–${end} von ${total}</span>
@@ -89,8 +85,8 @@ export function renderDayDistance(date, now = new Date(), page = 0) {
     </div>
   </div>` : '';
   return `<div class="day-distance" data-distance-date="${escapeHtml(date)}" data-distance-current="${currentPage}" aria-label="${escapeHtml(relative)}">
-    <div class="distance-title"><strong>${escapeHtml(relative)}</strong><span>Ein Kästchen = ein Tag</span></div>
-    <div class="distance-cells" role="list" aria-label="Tage zwischen heute und dem ausgewählten Tag">${cells}</div>
+    <div class="distance-title"><strong>${escapeHtml(relative)}</strong></div>
+    ${count ? `<div class="distance-cells" role="list" aria-label="Ein Kästchen pro Tag">${cells}</div>` : ''}
     ${nav}
   </div>`;
 }
