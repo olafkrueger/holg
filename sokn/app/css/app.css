@@ -196,3 +196,26 @@ body {
   .holger-visit { grid-template-columns:56px 1fr; }
   .holger-visit span { grid-column:2;text-align:left; }
 }
+
+.day-timeline { margin-top:12px; }
+.timeline-heading { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
+.timeline-heading h3 { margin:0;font-size:22px; }
+.timeline-now-label { color:#8a3525;font-weight:800; }
+.timeline-now-label::before { content:"";display:inline-block;width:4px;height:20px;vertical-align:middle;margin-right:8px;background:#a33f2e;border-radius:4px; }
+.timeline-axis { display:flex;justify-content:space-between;margin:20px 0 6px;font-size:15px;font-weight:800;color:var(--md-sys-color-on-surface); }
+.timeline-visit { margin:16px 0 20px; }
+.timeline-person { display:flex;align-items:center;gap:12px;margin-bottom:8px; }
+.timeline-person strong { flex:1;font-size:20px;overflow-wrap:anywhere; }
+.timeline-person > span:last-child:not(.timeline-avatar) { font-weight:800;white-space:nowrap; }
+.timeline-avatar { flex:none;width:52px;height:52px;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);font-size:22px;font-weight:800; }
+.timeline-track { position:relative;height:32px;border-radius:8px;background-color:var(--md-sys-color-surface-container-high);background-image:linear-gradient(to right,var(--md-sys-color-outline-variant) 1px,transparent 1px);background-size:25% 100%; }
+.timeline-interval { position:absolute;top:4px;bottom:4px;left:var(--start);width:var(--duration);min-width:3px;background:var(--md-sys-color-primary);border-radius:5px; }
+.timeline-now { position:absolute;z-index:1;top:-5px;bottom:-5px;left:var(--position);width:3px;background:#a33f2e;transform:translateX(-50%);border-radius:3px; }
+.timeline-empty { margin-top:10px; }
+.timeline-no-visits { color:var(--md-sys-color-on-surface-variant); }
+.holger-day > h2 { margin:0 0 12px; }
+.hero-card + .holger-day { margin-top:20px; }
+@media(max-width:620px) {
+  .timeline-person { flex-wrap:wrap; }
+  .timeline-person > span:last-child:not(.timeline-avatar) { margin-left:auto; }
+}

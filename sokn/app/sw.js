@@ -1,5 +1,5 @@
-const CACHE='sokn-v5';
-const CORE=['/','/css/tokens.css','/css/app.css','/js/app.js','/js/i18n.js','/manifest.webmanifest'];
+const CACHE='sokn-v6';
+const CORE=['/','/css/tokens.css','/css/app.css','/js/app.js','/js/i18n.js','/js/timeline.js','/manifest.webmanifest'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)));
