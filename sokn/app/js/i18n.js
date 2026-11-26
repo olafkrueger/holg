@@ -1,0 +1,18 @@
+export const de={
+ next:'Wer kommt als Nächstes?',
+ today:'Heute',
+ tomorrow:'Morgen',
+ coming:'Ich komme',
+ morning:'Morgens',
+ afternoon:'Nachmittags',
+ evening:'Abends',
+ noVisit:'Noch kein Besuch',
+ join:'Kreis beitreten',
+ loginDev:'Mit Entwicklungs-Login',
+ done:'Fertig',
+ day:'Tag wählen',
+ time:'Zeit wählen',
+ note:'Kurze Notiz',
+ noVisits:'Noch keine Termine',
+ loginNeeded:'Bitte zuerst anmelden',
+};

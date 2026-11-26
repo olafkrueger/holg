@@ -1,0 +1,10 @@
+{
+  "name": "Sókn",
+  "short_name": "Sókn",
+  "description": "Der Besucherkalender",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7fbfb",
+  "theme_color": "#1d5e66",
+  "icons": []
+}

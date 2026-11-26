@@ -1,0 +1,7 @@
+.node/
+node_modules/
+sokn/api/node_modules/
+sokn/api/data/
+*.db
+*.db-shm
+*.db-wal
