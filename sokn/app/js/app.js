@@ -20,11 +20,11 @@ function naturalDate(date){
   return d.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
 }
 const visitTemplates=[
-  {name:t.morning,start:'07:00',end:'09:00'},
-  {name:t.lateMorning,start:'09:00',end:'12:00'},
+  {name:t.morning,start:'08:00',end:'10:00'},
+  {name:t.lateMorning,start:'10:00',end:'12:00'},
   {name:t.midday,start:'12:00',end:'14:00'},
-  {name:t.afternoon,start:'14:00',end:'18:00'},
-  {name:t.evening,start:'18:00',end:'21:00'}
+  {name:t.afternoon,start:'14:00',end:'17:00'},
+  {name:t.evening,start:'17:00',end:'19:00'}
 ];
 function templateTimes(name){
   const template=visitTemplates.find(item=>item.name===name);
@@ -191,8 +191,8 @@ function renderVisitor(c,visits,selectedDate){
       const night=dayVisits.some(v=>v.start_time<'06:00'||v.start_time>='22:00');
       const morning=dayVisits.some(v=>v.start_time>='06:00'&&v.start_time<'12:00');
       const midday=dayVisits.some(v=>v.start_time>='12:00'&&v.start_time<'14:00');
-      const afternoon=dayVisits.some(v=>v.start_time>='14:00'&&v.start_time<'18:00');
-      const evening=dayVisits.some(v=>v.start_time>='18:00'&&v.start_time<'22:00');
+      const afternoon=dayVisits.some(v=>v.start_time>='14:00'&&v.start_time<'17:00');
+      const evening=dayVisits.some(v=>v.start_time>='17:00'&&v.start_time<'22:00');
       return `<button class="horizon-day ${isToday?'today':''} ${id===selected?'selected':''}" data-date="${id}" aria-label="${esc(naturalDate(id))}" aria-pressed="${id===selected}">
         <span class="horizon-relative">${esc(relative)}</span>
         <strong>${d.getDate()}</strong>
