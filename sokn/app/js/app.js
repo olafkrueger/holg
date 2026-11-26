@@ -1,11 +1,12 @@
 import {de as t} from './i18n.js';
-import {isValidTimeRange, nextVisit, renderPeople, renderTimeline, visitPeople} from './timeline.js';
+import {isValidTimeRange, nextVisit, renderPeople, renderTimeline, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
 const path=location.pathname;
 let refreshNextVisit=()=>{};
 let visibleVisits=[];
+let calendarView='day';
 
 async function api(url,options={}) {
   const r=await fetch(url,{headers:{'content-type':'application/json'},...options});
@@ -64,10 +65,56 @@ async function preparePhoto(file){
 }
 function dateLocal(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function naturalDate(date){
-  const d=new Date(`${date}T12:00:00`), today=new Date(), a=dateLocal(today), b=dateLocal(new Date(today.getTime()+86400000));
+  const d=new Date(`${date}T12:00:00`), today=new Date(), a=dateLocal(today), b=shiftDate(a,1);
   if(date===a)return t.today;
   if(date===b)return t.tomorrow;
   return d.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
+}
+function viewSwitch(){
+  return `<div class="view-switch" role="group" aria-label="Ansicht">
+    <button type="button" data-view="day" aria-pressed="false">Tagesansicht</button>
+    <button type="button" data-view="week" aria-pressed="false">Zeitleiste</button>
+  </div>`;
+}
+function setupOverview(container, visits, selectedDate, onSelect){
+  let start=selectedDate || dateLocal(new Date());
+  function render(){
+    container.innerHTML=`<div class="overview-nav">
+      <button type="button" class="overview-nav-button" data-overview-step="-7" aria-label="Vorherige 7 Tage">←</button>
+      <strong>7 Tage</strong>
+      <button type="button" class="overview-nav-button" data-overview-step="7" aria-label="Nächste 7 Tage">→</button>
+    </div><p class="overview-hint" aria-hidden="true">← Wischen →</p>${renderWeekOverview(start,visits,new Date(),selectedDate)}`;
+  }
+  container.addEventListener('click',event=>{
+    const nav=event.target.closest('[data-overview-step]');
+    if(nav){
+      start=shiftDate(start,Number(nav.dataset.overviewStep));
+      if(onSelect){selectedDate=start;onSelect(selectedDate);}
+      render();
+      container.querySelector(`[data-overview-step="${nav.dataset.overviewStep}"]`).focus();
+      return;
+    }
+    const day=event.target.closest('[data-overview-date]');
+    if(!day || !onSelect) return;
+    selectedDate=day.dataset.overviewDate;
+    container.querySelectorAll('[data-overview-date]').forEach(button=>{
+      const selected=button.dataset.overviewDate===selectedDate;
+      button.classList.toggle('selected',selected);
+      button.setAttribute('aria-pressed',String(selected));
+    });
+    onSelect(selectedDate);
+  });
+  return date=>{if(date){start=date;selectedDate=date;} render();};
+}
+function setupViewSwitch(onChange){
+  const buttons=app.querySelectorAll('[data-view]');
+  function select(view){
+    calendarView=view;
+    buttons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.view===view)));
+    onChange(view);
+  }
+  buttons.forEach(button=>button.addEventListener('click',()=>select(button.dataset.view)));
+  select(calendarView);
 }
 const visitTemplates=[
   {name:t.morning,start:'08:00',end:'10:00'},
@@ -210,14 +257,16 @@ function renderVisitor(c,visits,selectedDate){
   let selected=selectedDate||dateLocal(new Date());
   app.innerHTML=`<section class="visitor-shell">
     <div class="circle-heading"><div><span class="eyebrow">Besucherkalender</span><h1>${esc(c.name)}</h1></div><button class="button profile-button" id="profile">Mein Profil</button></div>
-    <section class="horizon-card" aria-label="Eine Woche zurück bis zwei Wochen voraus">
+    <section class="horizon-card" aria-label="Tage auswählen">
       <div id="next-visit" class="next-visit"></div>
+      ${viewSwitch()}
       <div class="horizon-rail" id="horizon-rail"></div>
     </section>
     <section class="day-panel">
       <div class="day-title" id="day-title"></div>
       <div id="day-visits"></div>
     </section>
+    <section class="overview-panel" id="week-overview" aria-label="Übersicht über sieben Tage" hidden></section>
   </section><button class="fab" id="fab">＋ ${t.coming}</button>`;
   function updateNextVisit(){
     const future=nextVisit(visits);
@@ -230,14 +279,17 @@ function renderVisitor(c,visits,selectedDate){
   refreshNextVisit=updateNextVisit;
   function renderHorizon(){
     const today=new Date();
+    const todayDate=dateLocal(today);
+    const base=selected < shiftDate(todayDate,-7) || selected > shiftDate(todayDate,13)
+      ? new Date(`${selected}T12:00:00`) : today;
     updateNextVisit();
 
     document.querySelector('#horizon-rail').innerHTML=Array.from({length:21},(_,i)=>{
-      const d=new Date(today); d.setDate(today.getDate()+i-7);
+      const d=new Date(base); d.setDate(base.getDate()+i-7);
       const id=dateLocal(d);
       const dayVisits=visits.filter(v=>v.date===id);
-      const isToday=id===dateLocal(today);
-      const relative=i===7?'Heute':i===8?'Morgen':i===6?'Gestern':d.toLocaleDateString('de-DE',{weekday:'short'});
+      const isToday=id===todayDate;
+      const relative=isToday?'Heute':id===shiftDate(todayDate,1)?'Morgen':id===shiftDate(todayDate,-1)?'Gestern':d.toLocaleDateString('de-DE',{weekday:'short'});
       const night=dayVisits.some(v=>v.start_time<'06:00'||v.start_time>='22:00');
       const morning=dayVisits.some(v=>v.start_time>='06:00'&&v.start_time<'12:00');
       const midday=dayVisits.some(v=>v.start_time>='12:00'&&v.start_time<'14:00');
@@ -250,20 +302,25 @@ function renderVisitor(c,visits,selectedDate){
         ${dayVisits.length?`<span class="horizon-count">${dayVisits.length}</span>`:''}
       </button>`;
     }).join('');
-    document.querySelectorAll('.horizon-day').forEach(b=>b.onclick=()=>{
-      selected=b.dataset.date;
+    document.querySelectorAll('.horizon-day').forEach(b=>b.onclick=()=>selectDay(b.dataset.date));
+    scrollHorizon();
+  }
+  function scrollHorizon(){
+    requestAnimationFrame(()=>{
+      const rail=app.querySelector('#horizon-rail');
+      const selectedButton=rail?.querySelector('.selected') || rail?.querySelector('.today');
+      if (rail && selectedButton && !rail.hidden) rail.scrollLeft=selectedButton.offsetLeft-rail.offsetLeft-(rail.clientWidth-selectedButton.offsetWidth)/2;
+    });
+  }
+  function selectDay(date){
+      selected=date;
+      if(!app.querySelector(`.horizon-day[data-date="${selected}"]`)) renderHorizon();
       document.querySelectorAll('.horizon-day').forEach(day=>{
         const isSelected=day.dataset.date===selected;
         day.classList.toggle('selected',isSelected);
         day.setAttribute('aria-pressed',String(isSelected));
       });
       renderDay();
-    });
-    requestAnimationFrame(()=>{
-      const rail=document.querySelector('#horizon-rail');
-      const todayButton=rail?.querySelector('.today');
-      if (rail && todayButton) rail.scrollLeft=todayButton.offsetLeft-rail.offsetLeft-(rail.clientWidth-todayButton.offsetWidth)/2;
-    });
   }
   function renderDay(){
     document.querySelector('#day-title').innerHTML=`<h2>${esc(naturalDate(selected))}</h2>`;
@@ -271,6 +328,16 @@ function renderVisitor(c,visits,selectedDate){
     document.querySelector('#day-visits').innerHTML=renderTimeline(selected,rows);
   }
   renderHorizon();renderDay();
+  const overview=app.querySelector('#week-overview');
+  const renderOverview=setupOverview(overview,visits,selected,selectDay);
+  setupViewSwitch(view=>{
+    const week=view==='week';
+    app.querySelector('#horizon-rail').hidden=week;
+    app.querySelector('.day-panel').hidden=week;
+    overview.hidden=!week;
+    if(week) renderOverview(selected);
+    else scrollHorizon();
+  });
   document.querySelector('#fab').onclick=()=>visitorFlow(c,selected);
   document.querySelector('#profile').onclick=()=>profilePage(c,selected);
 }
@@ -521,6 +588,8 @@ function renderHolger(c,visits){
   const sorted=[...visits].sort((a,b)=>(`${a.date}${a.start_time}`).localeCompare(`${b.date}${b.start_time}`)).filter(v=>v.date>=dateLocal(new Date()));
   const next=nextVisit(sorted);
   app.innerHTML=`<section class="hero-card card"><p>${t.next}</p><button type="button" class="hero-summary" id="holger-next" data-visit-id="${attr(next?.id || '')}" aria-label="Nächsten Besuch anzeigen" ${next?'':'hidden'}><span id="holger-next-people">${next?renderPeople(visitPeople(next)):''}</span><span class="hero-time">${next?`${esc(naturalDate(next.date))} · ${esc(next.template?.toLowerCase()||`${next.start_time}–${next.end_time}`)}`:''} <span aria-hidden="true">ⓘ</span></span></button><h1 id="holger-next-empty" ${next?'hidden':''}>${t.noVisit}</h1></section>
+    ${viewSwitch()}
+    <div id="holger-day-view">
     <section class="holger-day today"><h2>Heute</h2>${renderTimeline(dateLocal(new Date()),visits.filter(v=>v.date===dateLocal(new Date())))}</section>
     <section class="holger-horizon" aria-label="Besuche der nächsten zwei Wochen">
       ${Array.from({length:14},(_,i)=>{
@@ -532,7 +601,16 @@ function renderHolger(c,visits){
           ${renderTimeline(id,dayVisits)}
         </article>`;
       }).join('')||`<p>${t.noVisits}</p>`}
-    </section>`;
+    </section></div>
+    <section class="overview-panel" id="week-overview" aria-label="Übersicht über sieben Tage" hidden></section>`;
+  const overview=app.querySelector('#week-overview');
+  const renderOverview=setupOverview(overview,visits,null,null);
+  setupViewSwitch(view=>{
+    const week=view==='week';
+    app.querySelector('#holger-day-view').hidden=week;
+    overview.hidden=!week;
+    if(week) renderOverview();
+  });
   refreshNextVisit=()=>{
     const upcoming=nextVisit(visits);
     const button=document.querySelector('#holger-next');
@@ -588,6 +666,12 @@ setInterval(()=>{
     const time=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     label.textContent=`Jetzt ${time}`;
     timeline.querySelector('.timeline-overlay').style.setProperty('--position',`${(now.getHours()*60+now.getMinutes())/1440*100}%`);
+  });
+  document.querySelectorAll('.week-overview').forEach(overview=>{
+    const label=overview.querySelector('.overview-now-label');
+    if(!label) return;
+    label.textContent=`Jetzt ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    overview.style.setProperty('--now-position',`${(now.getHours()*60+now.getMinutes())/1440*100}%`);
   });
 }, 60_000);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

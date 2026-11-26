@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidTimeRange, localDate, nextVisit, renderTimeline } from '../../app/js/timeline.js';
+import { isValidTimeRange, localDate, nextVisit, renderTimeline, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
 
 const now = new Date(2030, 0, 2, 12, 0);
 const visit = (name, start, end, date = localDate(now)) => ({
@@ -35,6 +35,29 @@ test('detail timeline shows the selected visit and the current time without anot
   assert.match(html,/aria-label="Besuch von 09:00 bis 10:30 Uhr"/);
   assert.doesNotMatch(html,/<button|day-distance/);
   assert.doesNotMatch(renderTimeline('2030-01-03',[row],now,{detail:true}),/timeline-now/);
+});
+
+test('seven-day overview repeats the scale and positions visits on their correct days', () => {
+  const first={...visit('Alex','09:00','10:00'),id:'one'};
+  const overlap={...visit('Sam','09:30','11:00'),id:'two'};
+  const later={...visit('Mia','14:00','17:00','2030-01-03'),id:'three'};
+  const html=renderWeekOverview('2030-01-02',[first,overlap,later],now,'2030-01-03');
+  assert.equal((html.match(/class="overview-day"/g)||[]).length,7);
+  assert.equal((html.match(/class="timeline-phases"/g)||[]).length,7);
+  assert.equal((html.match(/class="overview-now-label"/g)||[]).length,1);
+  assert.equal((html.match(/class="overview-visit"/g)||[]).length,3);
+  assert.equal((html.match(/class="timeline-interval"/g)||[]).length,3);
+  assert.match(html,/data-overview-date="2030-01-03" aria-pressed="true"/);
+  assert.match(html,/data-visit-id="one"[\s\S]*?data-track-date="2030-01-02">[\s\S]*?--start:37\.5%;--duration:4\.166666666666666%/);
+  assert.match(html,/data-visit-id="two"[\s\S]*?data-track-date="2030-01-02">[\s\S]*?--start:39\.58333333333333%;--duration:6\.25%/);
+  assert.match(html,/data-visit-id="three"[\s\S]*?data-track-date="2030-01-03">[\s\S]*?--start:58\.333333333333336%;--duration:12\.5%/);
+  assert.match(html,/Heute, 2\.1\./);
+  assert.match(html,/Morgen, 3\.1\./);
+  const tablet=renderWeekOverview('2030-01-03',[later],now);
+  assert.doesNotMatch(tablet,/data-overview-date|overview-now-label/);
+  assert.match(tablet,/data-visit-id="three"/);
+  assert.equal(shiftDate('2028-02-28',2),'2028-03-01');
+  assert.doesNotMatch(renderWeekOverview('2030-01-04',[later],now),/data-visit-id="three"/);
 });
 
 test('shows night at both ends of a chronological day', () => {
@@ -76,6 +99,10 @@ test('shows every participant and a safe photo in the timeline', () => {
   assert.match(html,/<button[^>]*data-visit-id="visit-1"/);
   assert.match(html,/aria-label="Besuch anzeigen: Franzi, &lt;Tim&gt;, Toni, 09:00 bis 10:00"/);
   assert.doesNotMatch(html,/javascript:/);
+  const overview=renderWeekOverview(localDate(now),[row],now);
+  assert.match(overview,/src="\/api\/circles\/c\/photos\/companions\/p"/);
+  assert.match(overview,/&lt;Tim&gt;/);
+  assert.doesNotMatch(overview,/javascript:/);
 });
 
 test('custom times require half-hour steps and an end after the start on the same day', () => {
