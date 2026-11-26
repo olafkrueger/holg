@@ -1,0 +1,60 @@
+:root {
+  --md-sys-color-primary:#176b73;
+  --md-sys-color-on-primary:#ffffff;
+  --md-sys-color-primary-container:#b8ecef;
+  --md-sys-color-on-primary-container:#07383d;
+  --md-sys-color-secondary:#526f74;
+  --md-sys-color-on-secondary:#ffffff;
+  --md-sys-color-secondary-container:#d4e7e9;
+  --md-sys-color-on-secondary-container:#1a3438;
+  --md-sys-color-tertiary:#765b32;
+  --md-sys-color-tertiary-container:#ffddb8;
+  --md-sys-color-on-tertiary-container:#2c1a00;
+  --md-sys-color-error:#ba1a1a;
+  --md-sys-color-on-error:#ffffff;
+  --md-sys-color-surface:#f7fbfb;
+  --md-sys-color-surface-dim:#dfe8e8;
+  --md-sys-color-surface-bright:#f7fbfb;
+  --md-sys-color-surface-container-low:#f1f6f6;
+  --md-sys-color-surface-container:#edf4f4;
+  --md-sys-color-surface-container-high:#e7efef;
+  --md-sys-color-on-surface:#172425;
+  --md-sys-color-on-surface-variant:#526467;
+  --md-sys-color-outline:#6d7c7d;
+  --md-sys-color-outline-variant:#bcc9c9;
+  --md-sys-shape-card:28px;
+  --md-sys-shape-button:999px;
+  --md-sys-shape-chip:12px;
+  --md-sys-elevation-1:0 1px 3px rgb(23 36 37 / 12%),0 1px 2px rgb(23 36 37 / 8%);
+  --md-sys-elevation-2:0 4px 12px rgb(23 36 37 / 12%);
+  --md-sys-easing:cubic-bezier(.2,0,0,1);
+  --md-sys-typescale-display:clamp(40px,8vw,64px);
+  --md-sys-typescale-headline:clamp(28px,5vw,44px);
+  --md-sys-typescale-title:22px;
+  --md-sys-typescale-body:18px;
+}
+@media(prefers-color-scheme:dark) {
+  :root {
+    --md-sys-color-primary:#8bd8de;
+    --md-sys-color-on-primary:#00363b;
+    --md-sys-color-primary-container:#244f54;
+    --md-sys-color-on-primary-container:#b8ecef;
+    --md-sys-color-secondary:#b4cbd0;
+    --md-sys-color-on-secondary:#203638;
+    --md-sys-color-secondary-container:#394a4d;
+    --md-sys-color-on-secondary-container:#d0e7ea;
+    --md-sys-color-tertiary:#e4bf87;
+    --md-sys-color-tertiary-container:#57432e;
+    --md-sys-color-on-tertiary-container:#ffddb8;
+    --md-sys-color-surface:#101719;
+    --md-sys-color-surface-dim:#101719;
+    --md-sys-color-surface-bright:#363d3e;
+    --md-sys-color-surface-container-low:#1a2122;
+    --md-sys-color-surface-container:#1a2526;
+    --md-sys-color-surface-container-high:#253031;
+    --md-sys-color-on-surface:#e1ecec;
+    --md-sys-color-on-surface-variant:#bcc9c9;
+    --md-sys-color-outline:#9aacab;
+    --md-sys-color-outline-variant:#465b5c;
+  }
+}

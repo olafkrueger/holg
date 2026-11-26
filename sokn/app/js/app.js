@@ -147,27 +147,50 @@ async function circlePage(slug){
 }
 function renderVisitor(c,visits){
   let selected=dateLocal(new Date());
+  let monthDate=new Date(new Date().getFullYear(),new Date().getMonth(),1);
   app.innerHTML=`<section class="visitor-shell">
     <div class="circle-heading"><div><span class="eyebrow">Besucherkalender</span><h1>${esc(c.name)}</h1></div><div class="avatar">${esc(c.name?.charAt(0)||'H')}</div></div>
-    <div class="week-nav" aria-label="Woche"></div>
+    <section class="calendar-card" aria-label="Kalender">
+      <div class="calendar-toolbar">
+        <button class="icon-button" id="prev-month" aria-label="Vorheriger Monat">‹</button>
+        <h2 id="month-title"></h2>
+        <button class="icon-button" id="next-month" aria-label="Nächster Monat">›</button>
+      </div>
+      <div class="calendar-weekdays" aria-hidden="true">
+        ${['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=>`<span>${d}</span>`).join('')}
+      </div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+    </section>
     <section class="day-panel">
       <div class="day-title" id="day-title"></div>
       <div id="day-visits"></div>
     </section>
   </section><button class="fab" id="fab">＋ ${t.coming}</button>`;
-  function renderWeek(){
-    const today=new Date();
-    const monday=new Date(today); monday.setDate(today.getDate()-((today.getDay()+6)%7));
-    document.querySelector('.week-nav').innerHTML=Array.from({length:7},(_,i)=>{
-      const d=new Date(monday); d.setDate(monday.getDate()+i);
+  function renderCalendar(){
+    document.querySelector('#month-title').textContent=monthDate.toLocaleDateString('de-DE',{month:'long',year:'numeric'});
+    const first=new Date(monthDate.getFullYear(),monthDate.getMonth(),1);
+    const offset=(first.getDay()+6)%7;
+    const daysInMonth=new Date(monthDate.getFullYear(),monthDate.getMonth()+1,0).getDate();
+    const total=Math.ceil((offset+daysInMonth)/7)*7;
+    document.querySelector('#calendar-grid').innerHTML=Array.from({length:total},(_,i)=>{
+      const day=i-offset+1;
+      if(day<1||day>daysInMonth)return `<div class="calendar-day outside"></div>`;
+      const d=new Date(monthDate.getFullYear(),monthDate.getMonth(),day);
       const id=dateLocal(d);
-      return `<button class="day-chip ${id===selected?'selected':''}" data-date="${id}">
-        <span>${d.toLocaleDateString('de-DE',{weekday:'short'}).replace('.','')}</span>
-        <strong>${d.getDate()}</strong>
+      const dayVisits=visits.filter(v=>v.date===id);
+      const today=id===dateLocal(new Date());
+      const names=dayVisits.slice(0,3).map(v=>esc(v.display_name||'Besuch')).join(', ');
+      return `<button class="calendar-day ${today?'today':''} ${id===selected?'selected':''}" data-date="${id}" aria-label="${esc(naturalDate(id))}${names?', '+names:''}">
+        <span class="day-number">${day}</span>
+        ${dayVisits.length?`<span class="visit-dots">${dayVisits.slice(0,3).map(()=>'<i></i>').join('')}<em>${dayVisits.length}</em></span>`:''}
+        ${names?`<span class="calendar-name">${names}</span>`:''}
       </button>`;
     }).join('');
-    document.querySelectorAll('.day-chip').forEach(b=>b.onclick=()=>{
-      selected=b.dataset.date;renderWeek();renderDay();
+    document.querySelectorAll('.calendar-day[data-date]').forEach(b=>b.onclick=()=>{
+      selected=b.dataset.date;
+      const d=new Date(`${selected}T12:00:00`);
+      if(d.getMonth()!==monthDate.getMonth())monthDate=new Date(d.getFullYear(),d.getMonth(),1);
+      renderCalendar();renderDay();
     });
   }
   function renderDay(){
@@ -179,7 +202,9 @@ function renderVisitor(c,visits){
       <span class="time-chip">${esc(v.start_time)}–${esc(v.end_time)}</span></article>`).join(''):
       `<article class="empty-day"><span aria-hidden="true">☀</span><strong>Heute ist noch frei</strong><p>Du kannst einen Besuch ankündigen.</p></article>`;
   }
-  renderWeek();renderDay();
+  document.querySelector('#prev-month').onclick=()=>{monthDate=new Date(monthDate.getFullYear(),monthDate.getMonth()-1,1);renderCalendar();};
+  document.querySelector('#next-month').onclick=()=>{monthDate=new Date(monthDate.getFullYear(),monthDate.getMonth()+1,1);renderCalendar();};
+  renderCalendar();renderDay();
   document.querySelector('#fab').onclick=()=>visitorFlow(c);
 }
 function visitorFlow(c){

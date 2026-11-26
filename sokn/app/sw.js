@@ -1,4 +1,4 @@
-const CACHE='sokn-v2';
+const CACHE='sokn-v3';
 const CORE=['/','/css/tokens.css','/css/app.css','/js/app.js','/js/i18n.js','/manifest.webmanifest'];
 
 self.addEventListener('install',event=>{
@@ -19,6 +19,10 @@ self.addEventListener('fetch',event=>{
       {status:503,headers:{'content-type':'application/json'}}
     )));
   }else{
-    event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request)));
+    event.respondWith(fetch(event.request).then(response=>{
+      const copy=response.clone();
+      caches.open(CACHE).then(cache=>cache.put(event.request,copy));
+      return response;
+    }).catch(()=>caches.match(event.request)));
   }
 });
