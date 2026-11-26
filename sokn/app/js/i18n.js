@@ -8,12 +8,10 @@ export const de={
  midday:'Mittags',
  afternoon:'Nachmittags',
  evening:'Abends',
- noVisit:'Noch kein Besuch',
  loginDev:'Mit Entwicklungs-Login',
  done:'Fertig',
  day:'Tag wählen',
  time:'Zeit wählen',
  note:'Kurze Notiz',
- noVisits:'Noch keine Termine',
  loginNeeded:'Bitte zuerst anmelden',
 };

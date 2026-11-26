@@ -158,9 +158,9 @@ body {
   margin-bottom:18px;
 }
 .next-visit { margin-bottom:14px;padding:10px 12px;border-radius:18px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container); }
+.next-visit[hidden],.hero-card[hidden] { display:none; }
 .upcoming-title { margin:0 0 12px;font-size:20px;font-weight:900; }
 .hero-card .upcoming-title { font-size:var(--md-sys-typescale-headline); }
-.upcoming-empty { margin:8px 0;font-size:20px;font-weight:800; }
 .upcoming-list { display:grid;gap:8px; }
 .upcoming-card { display:flex;align-items:center;gap:12px;width:100%;height:112px;min-height:112px;max-height:112px;padding:12px;border:2px solid var(--md-sys-color-outline-variant);border-radius:20px;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);text-align:left; }
 .upcoming-card[hidden] { display:none; }
@@ -191,7 +191,7 @@ body {
   min-height:150px;border:1px solid var(--md-sys-color-outline-variant);border-radius:18px;background:var(--md-sys-color-surface);
   color:var(--md-sys-color-on-surface);padding:10px 8px;text-align:center;position:relative;
 }
-.horizon-day.today { border:3px solid var(--md-sys-color-primary);background:var(--md-sys-color-primary-container); }
+.horizon-day.today { position:sticky;left:0;z-index:3;border:3px solid var(--md-sys-color-primary);background:var(--md-sys-color-primary-container); }
 .horizon-day.selected { outline:3px solid var(--md-sys-color-tertiary);outline-offset:-3px; }
 .horizon-relative { display:block;min-height:38px;font-size:14px;font-weight:900;text-transform:capitalize;line-height:1.15; }
 .horizon-day strong { display:grid;width:48px;height:48px;margin:4px auto 8px;place-items:center;border-radius:50%;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:22px; }
@@ -204,6 +204,7 @@ body {
 .horizon-count { position:absolute;right:7px;top:7px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--md-sys-color-tertiary);color:var(--md-sys-color-on-tertiary-container);font-size:13px;font-weight:900; }
 
 .holger-horizon { display:grid;gap:12px;margin-top:20px; }
+.holger-horizon:not(:has(.holger-day)) { display:none; }
 .holger-day { border:1px solid var(--md-sys-color-outline-variant);border-radius:24px;background:var(--md-sys-color-surface);padding:16px; }
 .holger-day.today { border:3px solid var(--md-sys-color-primary);background:var(--md-sys-color-primary-container); }
 .holger-relative { font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px; }
@@ -245,7 +246,6 @@ body {
 .timeline-overlay { position:absolute;z-index:1;left:var(--person-width);right:0;top:0;bottom:0;pointer-events:none; }
 .timeline-now-label { position:absolute;top:0;left:clamp(48px,var(--position),calc(100% - 48px));transform:translateX(-50%);padding:5px 8px;border-radius:8px;background:#8a3525;color:#fff;font-size:14px;font-weight:800;white-space:nowrap; }
 .timeline-now { position:absolute;top:32px;bottom:0;left:var(--position);width:3px;background:#a33f2e;transform:translateX(-50%);border-radius:3px; }
-.timeline-no-visits { color:var(--md-sys-color-on-surface-variant);font-size:15px; }
 .view-switch { display:flex;flex-wrap:wrap;gap:8px;margin:16px 0; }
 .view-switch button,.overview-nav-button { min-height:64px;min-width:64px;padding:12px 18px;border:2px solid var(--md-sys-color-outline);border-radius:18px;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);font-weight:800; }
 .view-switch button[aria-pressed="true"] { border-color:var(--md-sys-color-primary);background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container); }
@@ -276,7 +276,6 @@ button.overview-date.selected { border-color:var(--md-sys-color-primary);backgro
 .overview-track-day { position:relative;flex:0 0 var(--overview-day-width);width:var(--overview-day-width);border-left:1px solid var(--md-sys-color-outline-variant);background-color:var(--md-sys-color-surface-container-high);background-image:linear-gradient(to right,var(--md-sys-color-outline-variant) 1px,transparent 1px);background-size:25% 100%; }
 .overview-track-day .timeline-interval { top:50%;bottom:auto;height:32px;transform:translateY(-50%); }
 .overview-now-line { position:absolute;top:0;bottom:0;left:var(--now-position);width:3px;transform:translateX(-50%);background:#a33f2e;pointer-events:none; }
-.overview-empty { position:sticky;left:0;margin:0;padding:24px 12px;background:var(--md-sys-color-surface-container-low); }
 .people-list { display:flex;flex-wrap:wrap;gap:10px; }
 .person { display:flex;flex-direction:column;align-items:center;gap:4px;max-width:100px;text-align:center; }
 .person-photo { width:56px;height:56px;flex:none;border-radius:50%;object-fit:cover;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container); }
@@ -341,7 +340,7 @@ button.overview-date.selected { border-color:var(--md-sys-color-primary);backgro
   .overview-date { padding:8px;font-size:16px; }
   .timeline-chart { --person-width:0px; }
   .timeline-visit { grid-template-columns:minmax(0,1fr);padding-bottom:12px; }
-  .timeline-person,.timeline-no-visits { position:relative;z-index:2;background:var(--timeline-background,var(--md-sys-color-surface)); }
+  .timeline-person { position:relative;z-index:2;background:var(--timeline-background,var(--md-sys-color-surface)); }
   .timeline-person { padding:8px 0; }
   .holger-day.today { --timeline-background:var(--md-sys-color-primary-container); }
   .timeline-phases { min-height:64px; }

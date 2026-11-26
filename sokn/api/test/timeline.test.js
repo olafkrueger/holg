@@ -1,10 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidTimeRange, localDate, nextVisit, upcomingVisits, renderUpcomingAvatars, renderTimeline, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
+import { horizonDates, isValidTimeRange, localDate, nextVisit, upcomingVisits, renderUpcomingAvatars, renderTimeline, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
 
 const now = new Date(2030, 0, 2, 12, 0);
 const visit = (name, start, end, date = localDate(now)) => ({
   display_name: name, start_time: start, end_time: end, date
+});
+
+test('day rail keeps today first while retaining past, future and distant selected days', () => {
+  const today='2030-01-02';
+  const normal=horizonDates(today,today);
+  assert.equal(normal.length,21);
+  assert.equal(normal[0],today);
+  assert.equal(normal.filter(date=>date===today).length,1);
+  assert.ok(normal.includes('2029-12-26'));
+  assert.ok(normal.includes('2030-01-15'));
+  const distant=horizonDates(today,'2030-03-01');
+  assert.equal(distant[0],today);
+  assert.ok(distant.includes('2030-03-01'));
+  assert.equal(distant.filter(date=>date===today).length,1);
 });
 
 test('places visit intervals and current time on the same 24-hour scale', () => {
@@ -23,8 +37,12 @@ test('places visit intervals and current time on the same 24-hour scale', () => 
 });
 
 test('shows now on an empty today, but not on another day', () => {
-  assert.match(renderTimeline(localDate(now), [], now), /Jetzt 12:00/);
+  const empty=renderTimeline(localDate(now), [], now);
+  assert.match(empty, /Jetzt 12:00/);
+  assert.match(empty, /timeline-phases/);
+  assert.doesNotMatch(empty, /Kein Besuch|timeline-visit/);
   assert.doesNotMatch(renderTimeline('2030-01-03', [], now), /timeline-now/);
+  assert.doesNotMatch(renderWeekOverview(localDate(now), [], now), /Kein Besuch|overview-visit/);
 });
 
 test('detail timeline shows the selected visit and the current time without another visit button', () => {

@@ -1,5 +1,5 @@
 import {de as t} from './i18n.js';
-import {isValidTimeRange, upcomingVisits, renderPeople, renderUpcomingAvatars, renderTimeline, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
+import {horizonDates, isValidTimeRange, upcomingVisits, renderPeople, renderUpcomingAvatars, renderTimeline, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
@@ -91,8 +91,10 @@ function setupUpcoming(container,visits,tablet=false){
     const key=JSON.stringify(future.map(visit=>visit.id));
     if(key===signature) return;
     signature=key;
+    container.hidden=future.length===0;
+    if(!future.length){container.innerHTML='';return;}
     container.innerHTML=`<h2 class="upcoming-title">${tablet?esc(t.next):'Nächste Besuche'}</h2>
-      ${future.length ? `<div class="upcoming-list" id="upcoming-list">
+      <div class="upcoming-list" id="upcoming-list">
         ${future.map((visit,index)=>{
           const people=visitPeople(visit);
           const names=people.map(person=>person.display_name || 'Besuch').join(' + ');
@@ -107,7 +109,7 @@ function setupUpcoming(container,visits,tablet=false){
           </button>`;
         }).join('')}
       </div>
-      ${future.length>3?'<button type="button" class="upcoming-expand" aria-controls="upcoming-list"></button>':''}` : `<p class="upcoming-empty">${tablet?esc(t.noVisit):'Kein bevorstehender Besuch'}</p>`}`;
+      ${future.length>3?'<button type="button" class="upcoming-expand" aria-controls="upcoming-list"></button>':''}`;
     updateExpanded();
   };
 }
@@ -311,18 +313,15 @@ function renderVisitor(c,visits,selectedDate){
   </section><button class="fab" id="fab">＋ ${t.coming}</button>`;
   refreshNextVisit=setupUpcoming(app.querySelector('#next-visit'),visits);
   function renderHorizon(){
-    const today=new Date();
-    const todayDate=dateLocal(today);
-    const base=selected < shiftDate(todayDate,-7) || selected > shiftDate(todayDate,13)
-      ? new Date(`${selected}T12:00:00`) : today;
+    const todayDate=dateLocal(new Date());
+    const tomorrow=shiftDate(todayDate,1), yesterday=shiftDate(todayDate,-1);
     refreshNextVisit();
 
-    document.querySelector('#horizon-rail').innerHTML=Array.from({length:21},(_,i)=>{
-      const d=new Date(base); d.setDate(base.getDate()+i-7);
-      const id=dateLocal(d);
+    document.querySelector('#horizon-rail').innerHTML=horizonDates(todayDate,selected).map(id=>{
+      const d=new Date(`${id}T12:00:00`);
       const dayVisits=visits.filter(v=>v.date===id);
       const isToday=id===todayDate;
-      const relative=isToday?'Heute':id===shiftDate(todayDate,1)?'Morgen':id===shiftDate(todayDate,-1)?'Gestern':d.toLocaleDateString('de-DE',{weekday:'short'});
+      const relative=isToday?'Heute':id===tomorrow?'Morgen':id===yesterday?'Gestern':d.toLocaleDateString('de-DE',{weekday:'short'});
       const night=dayVisits.some(v=>v.start_time<'06:00'||v.start_time>='22:00');
       const morning=dayVisits.some(v=>v.start_time>='06:00'&&v.start_time<'12:00');
       const midday=dayVisits.some(v=>v.start_time>='12:00'&&v.start_time<'14:00');
@@ -341,19 +340,29 @@ function renderVisitor(c,visits,selectedDate){
   function scrollHorizon(){
     requestAnimationFrame(()=>{
       const rail=app.querySelector('#horizon-rail');
-      const selectedButton=rail?.querySelector('.selected') || rail?.querySelector('.today');
-      if (rail && selectedButton && !rail.hidden) rail.scrollLeft=selectedButton.offsetLeft-rail.offsetLeft-(rail.clientWidth-selectedButton.offsetWidth)/2;
+      if(!rail || rail.hidden) return;
+      const todayButton=rail.querySelector('.today');
+      const tomorrow=shiftDate(dateLocal(new Date()),1);
+      const target=rail.querySelector('.selected:not(.today)') || rail.querySelector(`[data-date="${tomorrow}"]`) || rail.querySelector('.horizon-day:not(.today)');
+      if(todayButton && target){
+        rail.scrollLeft=0;
+        const gap=parseFloat(getComputedStyle(rail).columnGap) || 0;
+        rail.scrollLeft=target.getBoundingClientRect().left-todayButton.getBoundingClientRect().right-gap;
+      }
     });
   }
   function selectDay(date){
       selected=date;
-      if(!app.querySelector(`.horizon-day[data-date="${selected}"]`)) renderHorizon();
+      const today=dateLocal(new Date());
+      const tomorrow=shiftDate(today,1);
+      if(!app.querySelector(`.horizon-day[data-date="${selected}"]`) || (selected===today && !app.querySelector(`.horizon-day[data-date="${tomorrow}"]`))) renderHorizon();
       document.querySelectorAll('.horizon-day').forEach(day=>{
         const isSelected=day.dataset.date===selected;
         day.classList.toggle('selected',isSelected);
         day.setAttribute('aria-pressed',String(isSelected));
       });
       renderDay();
+      if(selected===today) scrollHorizon();
   }
   function renderDay(){
     document.querySelector('#day-title').innerHTML=`<h2>${esc(naturalDate(selected))}</h2>`;
@@ -631,7 +640,7 @@ function renderHolger(c,visits){
           <div class="holger-relative">${i===0?'Heute':i===1?'Morgen':esc(d.toLocaleDateString('de-DE',{weekday:'long'}))}</div>
           ${renderTimeline(id,dayVisits)}
         </article>`;
-      }).join('')||`<p>${t.noVisits}</p>`}
+      }).join('')}
     </section></div>
     <section class="overview-panel" id="week-overview" aria-label="Übersicht über sieben Tage" hidden></section>`;
   const overview=app.querySelector('#week-overview');

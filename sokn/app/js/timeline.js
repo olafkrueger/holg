@@ -16,6 +16,12 @@ export function shiftDate(date, days) {
   return localDate(d);
 }
 
+export function horizonDates(today, selected) {
+  const base = selected < shiftDate(today, -7) || selected > shiftDate(today, 13) ? selected : today;
+  const dates = Array.from({length:21}, (_, i) => shiftDate(base, i - 7));
+  return [today, ...dates.filter(date => date !== today)];
+}
+
 function minutes(time) {
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time || '')) return null;
   return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
@@ -105,7 +111,7 @@ export function renderTimeline(date, visits, now = new Date(), {detail = false} 
   return `<section class="day-timeline" aria-label="Uhrzeiten">
     <div class="timeline-chart ${isToday ? 'has-now' : ''}">
       ${renderScale()}
-      ${rows || `<div class="timeline-visit"><p class="timeline-no-visits">Kein Besuch</p><div class="timeline-track" aria-hidden="true"></div></div>`}
+      ${rows}
       ${isToday ? marker(now) : ''}
     </div>
   </section>`;
@@ -148,7 +154,7 @@ export function renderWeekOverview(startDate, visits, now = new Date(), selected
   return `<div class="overview-scroll" role="region" aria-label="Zeitachse, horizontal scrollbar" tabindex="0">
     <div class="week-overview" style="--now-position:${position}%">
       <div class="overview-header"><span class="overview-corner">Besuche</span>${days}</div>
-      ${rows || `<p class="overview-empty">Kein Besuch in diesen Tagen</p>`}
+      ${rows}
     </div>
   </div>`;
 }
