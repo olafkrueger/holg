@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidTimeRange, localDate, nextVisit, upcomingVisits, renderTimeline, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
+import { isValidTimeRange, localDate, nextVisit, upcomingVisits, renderUpcomingAvatars, renderTimeline, renderWeekOverview, shiftDate } from '../../app/js/timeline.js';
 
 const now = new Date(2030, 0, 2, 12, 0);
 const visit = (name, start, end, date = localDate(now)) => ({
@@ -95,6 +95,18 @@ test('upcoming visits include every ongoing and future visit in chronological or
   assert.deepEqual(upcomingVisits(visits,now).map(v=>v.display_name),['Ongoing','Later','Tomorrow','Much later']);
   assert.deepEqual(upcomingVisits(visits,new Date(2030,0,2,12,31)).map(v=>v.display_name),['Later','Tomorrow','Much later']);
   assert.equal(upcomingVisits([],now).length,0);
+});
+
+test('upcoming avatar stack indicates additional people without hiding them in visit details', () => {
+  const people=['Franzi','Tim','Toni','Olaf','Marc'].map(display_name=>({display_name}));
+  const stack=renderUpcomingAvatars(people);
+  assert.equal((stack.match(/class="person"/g)||[]).length,3);
+  assert.match(stack,/\+2<\/span>/);
+  assert.doesNotMatch(stack,/>Olaf</);
+  const detail=renderTimeline(localDate(now),[{...visit('Franzi','09:00','10:00'),people}],now);
+  assert.match(detail,/>Olaf</);
+  assert.match(detail,/>Marc</);
+  assert.doesNotMatch(renderUpcomingAvatars(people.slice(0,3)),/upcoming-avatar-count/);
 });
 
 test('shows every participant and a safe photo in the timeline', () => {

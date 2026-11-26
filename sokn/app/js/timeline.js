@@ -57,6 +57,11 @@ export function renderPeople(people) {
   }).join('')}</span>`;
 }
 
+export function renderUpcomingAvatars(people) {
+  const extra = Math.max(0, people.length - 3);
+  return `${renderPeople(people.slice(0, 3))}${extra ? `<span class="upcoming-avatar-count" aria-hidden="true">+${extra}</span>` : ''}`;
+}
+
 function marker(now) {
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const position = (now.getHours() * 60 + now.getMinutes()) / DAY_MINUTES * 100;

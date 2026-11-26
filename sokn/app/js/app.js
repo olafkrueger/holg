@@ -1,5 +1,5 @@
 import {de as t} from './i18n.js';
-import {isValidTimeRange, upcomingVisits, renderPeople, renderTimeline, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
+import {isValidTimeRange, upcomingVisits, renderPeople, renderUpcomingAvatars, renderTimeline, renderWeekOverview, shiftDate, visitPeople} from './timeline.js';
 
 const app=document.querySelector('#app');
 const back=document.querySelector('#back-button');
@@ -99,9 +99,10 @@ function setupUpcoming(container,visits,tablet=false){
           const date=naturalDate(visit.date);
           const time=`${visit.start_time}–${visit.end_time}`;
           return `<button type="button" class="upcoming-card" data-visit-id="${attr(visit.id)}" aria-label="Besuch anzeigen: ${attr(names)}, ${attr(date)}, ${attr(time)}" ${!expanded && index>=3?'hidden':''}>
-            <span class="upcoming-avatars ${people.length>1?'multiple':''}">${renderPeople(people)}</span>
+            <span class="upcoming-avatars ${people.length>1?'multiple':''}">${renderUpcomingAvatars(people)}</span>
             <span class="upcoming-info"><strong class="upcoming-names">${esc(names)}</strong>
-              <span class="upcoming-date">${esc(date)} · ${esc(time)} <span aria-hidden="true">ⓘ</span></span>
+              <span class="upcoming-date">${esc(date)}</span>
+              <span class="upcoming-time">${esc(time)}</span>
             </span>
           </button>`;
         }).join('')}

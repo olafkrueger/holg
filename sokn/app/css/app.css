@@ -162,27 +162,30 @@ body {
 .hero-card .upcoming-title { font-size:var(--md-sys-typescale-headline); }
 .upcoming-empty { margin:8px 0;font-size:20px;font-weight:800; }
 .upcoming-list { display:grid;gap:8px; }
-.upcoming-card { display:flex;align-items:center;gap:16px;width:100%;min-height:96px;padding:12px;border:2px solid var(--md-sys-color-outline-variant);border-radius:20px;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);text-align:left; }
+.upcoming-card { display:flex;align-items:center;gap:12px;width:100%;height:112px;min-height:112px;max-height:112px;padding:12px;border:2px solid var(--md-sys-color-outline-variant);border-radius:20px;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);text-align:left; }
 .upcoming-card[hidden] { display:none; }
 .upcoming-card:hover { border-color:var(--md-sys-color-primary); }
 .upcoming-card:focus-visible,.upcoming-expand:focus-visible { outline:3px solid var(--md-sys-color-primary);outline-offset:3px; }
-.upcoming-avatars { flex:0 0 64px;width:64px; }
-.upcoming-avatars.multiple { flex-basis:104px;width:104px; }
-.upcoming-avatars .people-list { gap:8px; }
+.upcoming-avatars { position:relative;flex:0 0 124px;width:124px; }
+.upcoming-avatars .people-list { flex-wrap:nowrap;gap:0; }
+.upcoming-avatars .person { flex:none; }
+.upcoming-avatars .person + .person { margin-left:-16px; }
 .upcoming-avatars .person-name { display:none; }
-.upcoming-avatars .person-photo { width:64px;height:64px; }
-.upcoming-avatars.multiple .person-photo { width:48px;height:48px; }
-.upcoming-info { display:grid;gap:4px;min-width:0; }
-.upcoming-names { font-size:20px;overflow-wrap:anywhere; }
-.upcoming-date { font-size:18px;font-weight:700; }
+.upcoming-avatars .person-photo { width:64px;height:64px;border:2px solid var(--md-sys-color-surface); }
+.upcoming-avatars.multiple .person-photo { width:52px;height:52px; }
+.upcoming-avatar-count { position:absolute;right:0;bottom:-4px;display:grid;place-items:center;min-width:30px;height:30px;padding:0 4px;border:2px solid var(--md-sys-color-surface);border-radius:50%;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:13px;font-weight:800; }
+.upcoming-info { display:grid;gap:2px;flex:1;min-width:0;overflow:hidden; }
+.upcoming-names,.upcoming-date,.upcoming-time { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.15; }
+.upcoming-names { font-size:20px; }
+.upcoming-date,.upcoming-time { font-size:18px;font-weight:700; }
 .upcoming-expand { width:100%;min-height:64px;margin-top:8px;padding:8px 16px;border:0;border-radius:16px;background:var(--md-sys-color-surface);color:var(--md-sys-color-primary);font-weight:800; }
-.hero-card .upcoming-card { min-height:112px; }
-.hero-card .upcoming-avatars { flex-basis:80px;width:80px; }
-.hero-card .upcoming-avatars.multiple { flex-basis:120px;width:120px; }
+.hero-card .upcoming-card { height:128px;min-height:128px;max-height:128px; }
+.hero-card .upcoming-avatars { flex-basis:152px;width:152px; }
 .hero-card .upcoming-avatars .person-photo { width:80px;height:80px; }
-.hero-card .upcoming-avatars.multiple .person-photo { width:56px;height:56px; }
+.hero-card .upcoming-avatars.multiple .person-photo { width:64px;height:64px; }
+.hero-card .upcoming-avatars .person + .person { margin-left:-20px; }
 .hero-card .upcoming-names { font-size:24px; }
-.hero-card .upcoming-date { font-size:22px; }
+.hero-card .upcoming-date,.hero-card .upcoming-time { font-size:22px; }
 .horizon-rail { display:grid;grid-auto-flow:column;grid-auto-columns:minmax(92px,1fr);gap:8px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:thin; }
 .horizon-day {
   min-height:150px;border:1px solid var(--md-sys-color-outline-variant);border-radius:18px;background:var(--md-sys-color-surface);
@@ -345,4 +348,17 @@ button.overview-date.selected { border-color:var(--md-sys-color-primary);backgro
   .timeline-phase svg { width:30px;height:30px; }
   .timeline-phase small { display:none; }
   .timeline-axis { font-size:14px; }
+}
+@media(max-width:420px) {
+  .horizon-card { padding:8px; }
+  .next-visit { padding:10px 8px; }
+  .upcoming-avatars { flex-basis:100px;width:100px; }
+  .upcoming-avatars.multiple .person-photo { width:48px;height:48px; }
+  .upcoming-avatars .person + .person { margin-left:-22px; }
+  .upcoming-time { font-size:16px; }
+  .hero-card { padding:16px; }
+  .hero-card .upcoming-avatars { flex-basis:124px;width:124px; }
+  .hero-card .upcoming-avatars.multiple .person-photo { width:56px;height:56px; }
+  .hero-card .upcoming-avatars .person + .person { margin-left:-22px; }
+  .hero-card .upcoming-time { font-size:15px; }
 }
